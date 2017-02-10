@@ -73,6 +73,8 @@ const int loseTxtX = 30;
 const int loseTxtY = 65;
 const int winTxtX = 30;
 const int winTxtY = 65;
+const int countdownTxtX = screenX/2 - 3;
+const int countdownTxtY = 65;
 
 const int modeX = modeLblX + strlen(modeLbl) * 6 + 2;
 const int scoreX = scoreLblX + strlen(scoreLbl) * 6 + 2;
@@ -252,14 +254,12 @@ void gameEnd(enum resultEnum result) {
 		if (sound == HIGH){
 			Esplora.tone(130,1000);
 		}
-		for (int i=0; i<100; i++){
+		for (int i=0; i<75; i++){
 			EsploraTFT.stroke(255, 0, 0);
 			EsploraTFT.setTextSize(2);
 			EsploraTFT.text(loseTxt, loseTxtX, loseTxtY);
-			EsploraTFT.stroke(255,0,0);
+			EsploraTFT.stroke(0,0,255);
 			EsploraTFT.text(loseTxt, loseTxtX, loseTxtY);
-			EsploraTFT.setTextSize(1);
-			EsploraTFT.noStroke();
 		}
 		EsploraTFT.stroke(0,0,0);
 		delay(1000);
@@ -276,14 +276,13 @@ void gameEnd(enum resultEnum result) {
 			delay(250);
 			Esplora.tone(430,500);
 		}
-		for (int i=0; i<200; i++){
-			EsploraTFT.stroke(0,255,0);
+		for (int i=0; i<10; i++){
+			EsploraTFT.stroke(255, 0, 0);
 			EsploraTFT.setTextSize(2);
 			EsploraTFT.text(winTxt, winTxtX, winTxtY);
-			EsploraTFT.stroke(0,0,255);
+			EsploraTFT.stroke(0, 255, 0);
 			EsploraTFT.text(winTxt, winTxtX, winTxtY);
-			EsploraTFT.setTextSize(1);
-			EsploraTFT.noStroke();
+			delay(10);
 		}
 		EsploraTFT.stroke(0,0,0);
 		delay(1000);
@@ -294,6 +293,7 @@ void gameEnd(enum resultEnum result) {
 
 	}
 
+	EsploraTFT.noStroke();
 }
 
 void moveBall(void){
@@ -421,6 +421,36 @@ void getMode() {
 	}
 
 	EsploraTFT.background(0,0,0);	//set the screen black
+	EsploraTFT.stroke(0, 0, 0);
+
+}
+
+void delayWithPaddle(long delayMillis) {
+	long start = millis();
+
+	while (millis() - start < delayMillis) {
+		paddle();
+	}
+}
+
+void showCountdown() {
+	char secsBuff[2];
+	int secs = 3;
+
+	for (secs; secs > 0; secs--) {
+		sprintf(secsBuff, "%d", secs);
+
+		EsploraTFT.stroke(0, 0, 255);
+		EsploraTFT.textSize(2);
+		EsploraTFT.text(secsBuff, countdownTxtX, countdownTxtY);
+		EsploraTFT.noStroke();
+		delayWithPaddle(1000);
+		EsploraTFT.noStroke();
+		EsploraTFT.fill(0,0,0);
+		EsploraTFT.rect(countdownTxtX, countdownTxtY, 15, 15);
+	}
+
+	EsploraTFT.setTextSize(1);
 
 }
 
@@ -436,6 +466,7 @@ void newScreen(void) {						//this is the setup for clearing the screen for a ne
 	showLabels();
 	showMode();
 	showScore();
+	showCountdown();
 
 }
 
