@@ -8,7 +8,7 @@
 #ifndef BREAKOUT_H_
 #define BREAKOUT_H_
 
-enum paddleModeEnum {JOYSTICK, SLIDER, TILT} paddleMode = TILT;
+enum paddleModeEnum {JOYSTICK, SLIDER, TILT, AUTO} paddleMode = TILT;
 enum resultEnum {LOSS, WIN};
 
 #endif /* BREAKOUT_H_ */

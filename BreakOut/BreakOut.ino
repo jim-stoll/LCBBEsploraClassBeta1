@@ -14,13 +14,17 @@
 
 #include "BreakOut.h"
 
+//TODO:
+
 //enum paddleModeEnum {JOYSTICK, SLIDER, TILT} paddleMode = TILT;
 //enum resultEnum {LOSS, WIN};
 
 static const char paddleModeStringJoystick[] = "Joystick";
 static const char paddleModeStringSlider[] =   "Slider";
 static const char paddleModeStringTilt[] =     "Tilt";
-const char* modeStrings[] = {paddleModeStringJoystick, paddleModeStringSlider, paddleModeStringTilt};
+static const char paddleModeStringAuto[] =     "Auto";
+
+const char* modeStrings[] = {paddleModeStringJoystick, paddleModeStringSlider, paddleModeStringTilt, paddleModeStringAuto};
 
 static const char modeLbl[] = "Mode:";
 static const char scoreLbl[] = "Score:";
@@ -35,7 +39,7 @@ typedef struct {
 	int scoreMultiplier;
 } modeParamsStruct;
 
-modeParamsStruct modeParams[3];
+modeParamsStruct modeParams[4];
 
 int screenX = EsploraTFT.width();
 int screenY = EsploraTFT.height();
@@ -83,9 +87,21 @@ int tiltZero = 0;		//offset from level reading, taken when go into tilt mode, to
 const int tiltDeadZone = 6;
 const int tiltSlowZone = 80;
 
+//int freeRam () {
+//  extern int __heap_start, *__brkval;
+//  int v;
+//  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
+//  }
+//
+//char *getFreeRamAsText() {
+//	static char sBuf[11] = {'\0'};
+//	sprintf_P(sBuf, PSTR("%d bytes"), freeRam());
+//	return sBuf;
+//}
+
 
 void setup(){
-	Serial.begin(115200);
+//	Serial.begin(115200);
 	// initialize the display
 	EsploraTFT.begin();
 	// set the background the black
@@ -107,6 +123,11 @@ void setup(){
 	modeParams[TILT].speedIncreaseHitCount = 2;
 	modeParams[TILT].speedIncreaseIncrementMillis = 1;
 	modeParams[TILT].scoreMultiplier = 1;
+	modeParams[AUTO].initialBallSpeed = 25;
+	modeParams[AUTO].paddleW = 20;
+	modeParams[AUTO].speedIncreaseHitCount = 2;
+	modeParams[AUTO].speedIncreaseIncrementMillis = 2;
+	modeParams[AUTO].scoreMultiplier = 1;
 
 	newScreen();							 //routine to redraw a fresh screen
 }
@@ -130,26 +151,32 @@ void drawPaddle() {
 }
 
 void paddle() {
-	switch (paddleMode) {
-		case JOYSTICK:
-			joystickPaddle();
-			break;
+		switch (paddleMode) {
+			case JOYSTICK:
+				joystickPaddle();
+				break;
 
-		case SLIDER:
-			sliderPaddle();
-			break;
+			case SLIDER:
+				sliderPaddle();
+				break;
 
-		case TILT:
-			tiltPaddle();
-			break;
-	}
+			case TILT:
+				tiltPaddle();
+				break;
+
+			case AUTO:
+				autoPaddle();
+				break;
+		}
 
 	if (paddleX<1){	//if the paddle tries to go too far left
 		paddleX=1;		 //position it on the far left
 	}
+
 	if (paddleX>screenX-paddleW){	//if the paddle tries to go too far right
 		paddleX=screenX-paddleW;		 //set the position to the far right - the paddle width
 	}
+
 	//this checks to see if the paddle has moved from the last position
 	if (paddleX != paddleLastX) {		//if the new position is not equal to the old position
 		drawPaddle();
@@ -165,15 +192,9 @@ void sliderPaddle() {
 }
 
 void tiltPaddle() {
-//	static long lastSerialMillis = 0;
 	int tiltVal = Esplora.readAccelerometer(X_AXIS) - tiltZero;
-//	if (millis() - lastSerialMillis > 500) {
-//		lastSerialMillis = millis();
-//		Serial.print(tiltZero);
-//		Serial.print(" : ");
-//		Serial.println(tiltVal);
-//	}
 	int scaledTiltVal = 0;
+
 	if (abs(tiltVal) > tiltDeadZone) {
 		if (tiltVal < 0) {
 			if (tiltVal < -1*tiltSlowZone) {
@@ -192,6 +213,17 @@ void tiltPaddle() {
 	}
 }
 
+void autoPaddle() {
+	//keep the paddle under the ball, but randomly move the paddle around by 1/3 paddle width, to prevent
+	// getting 'stuck' in one place, in the case of a straight vertical hit
+	paddleX = ballX - paddleW/2;
+
+	if (ballY == paddleY - paddleH - 1) {
+		paddleX += map(random(3), 0, 2, -1, 1) * paddleW/3;
+	}
+
+}
+
 void joystickPaddle() {
 	paddleX=map(Esplora.readJoystickX(),-512, 512, screenX,0)-paddleW/2;
 }
@@ -202,8 +234,19 @@ void setupNewPaddle() {
 	ballDelay = modeParams[paddleMode].initialBallSpeed;
 	paddleW = modeParams[paddleMode].paddleW;
 	scoreMultiplier = modeParams[paddleMode].scoreMultiplier;
+	EsploraTFT.noStroke();
 	drawPaddle();
 
+}
+
+void setupNewBall() {
+	ballX = random(screenX - ballRadius);
+	ballY = screenTopY + bricksTall * brickH + 10;
+	ballLastX = ballX;
+	ballLastY = ballY;
+	ballXDir = map(random(3), 0, 2, -1, 1);
+	ballYDir = abs(ballYDir);
+	bricksHit = 0;
 }
 
 void checkSoundButton() {
@@ -222,9 +265,6 @@ bool checkModeButtons(void) {
 	}
 
 	if (Esplora.readButton(SWITCH_UP) == LOW) {
-//		while (Esplora.readButton(SWITCH_UP == LOW)) {
-//			delay(10);
-//		}
 		int tiltSum = 0;
 		int tiltSamples = 20;
 		paddleMode = TILT;
@@ -246,6 +286,13 @@ bool checkModeButtons(void) {
 		return true;
 	}
 
+	if (Esplora.readButton(SWITCH_RIGHT) == LOW) {
+		paddleMode = AUTO;
+		setupNewPaddle();
+		delay(250);
+		return true;
+	}
+
 	return false;
 }
 
@@ -261,11 +308,6 @@ void gameEnd(enum resultEnum result) {
 			EsploraTFT.stroke(0,0,255);
 			EsploraTFT.text(loseTxt, loseTxtX, loseTxtY);
 		}
-		EsploraTFT.stroke(0,0,0);
-		delay(1000);
-		newScreen();
-		ballY=screenY / 2;
-		bricksHit = 0;
 	} else {
 		EsploraTFT.fill(0,0,0);
 		EsploraTFT.rect(ballX,ballY,ballRadius,ballRadius);
@@ -284,16 +326,12 @@ void gameEnd(enum resultEnum result) {
 			EsploraTFT.text(winTxt, winTxtX, winTxtY);
 			delay(10);
 		}
-		EsploraTFT.stroke(0,0,0);
-		delay(1000);
-		newScreen();
-		ballY = screenY / 2;
-		ballX = screenX / 2;
-		bricksHit = 0;
-
 	}
 
-	EsploraTFT.noStroke();
+
+	EsploraTFT.stroke(0,0,0);
+	delay(1000);
+	newScreen();
 }
 
 void moveBall(void){
@@ -306,8 +344,9 @@ void moveBall(void){
 		}
 	}
 	//check if the ball hits the top of the screen
-	if (ballY < screenTopY){
-		ballYDir = -ballYDir;
+	if (ballY <= screenTopY){
+		//at top of screen ball direction will always be postive (ran into bug trying to just complement the direction)
+		ballYDir = abs(ballYDir);
 		if (sound == HIGH){
 			Esplora.tone(530,10);
 		}
@@ -349,6 +388,7 @@ void moveBall(void){
 			Esplora.tone(730,10);
 		}
 		ballHits ++;
+
 		if (ballHits % modeParams[paddleMode].speedIncreaseHitCount == 0) {
 			ballDelay = ballDelay - modeParams[paddleMode].speedIncreaseIncrementMillis;
 			if (ballDelay < 1) {
@@ -376,6 +416,7 @@ void moveBall(void){
 	//update the last ball position to the new ball position
 	ballLastX = ballX;
 	ballLastY = ballY;
+
 }
 
 void showLabels() {
@@ -413,11 +454,11 @@ void getMode() {
 	EsploraTFT.text("1: Slider", 25, 30);
 	EsploraTFT.text("2: Joystick", 25, 50);
 	EsploraTFT.text("3: Tilt", 25, 70);
+	EsploraTFT.text("4: Auto", 25, 90);
 	EsploraTFT.textSize(1);
 	EsploraTFT.noStroke();
 
 	while (!checkModeButtons()) {
-//		delay(100);
 	}
 
 	EsploraTFT.background(0,0,0);	//set the screen black
@@ -457,6 +498,7 @@ void showCountdown() {
 void newScreen(void) {						//this is the setup for clearing the screen for a new game
 	EsploraTFT.background(0,0,0);	//set the screen black
 	getMode();
+	setupNewBall();
 	paddleLastX = ballX;					 //set the last paddle position to something (makes the game draw a new paddle every time)
 	paddle();											//routine draws the paddle on the screen
 	setupNewPaddle();
@@ -478,6 +520,7 @@ void blocks(void){
 			brick[a][b]=HIGH;
 		}
 	}
+	EsploraTFT.stroke(0, 0, 0);
 	//now run trough the array and draw the bricks on the screen
 	for (int a=0; a<bricksWide; a++){
 		for (int b=0; b<bricksTall; b++){
