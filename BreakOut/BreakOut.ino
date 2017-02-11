@@ -214,7 +214,7 @@ void tiltPaddle() {
 }
 
 void autoPaddle() {
-	//keep the paddle under the ball, but randomly move the paddle around by 1/3 paddle width, to prevent
+	//keep the paddle centered under the ball, but randomly move the paddle around by 1/3 paddle width, to prevent
 	// getting 'stuck' in one place, in the case of a straight vertical hit
 	paddleX = ballX - paddleW/2;
 
@@ -450,12 +450,15 @@ void showScore() {
 void getMode() {
 	EsploraTFT.stroke(0, 255, 0);
 	EsploraTFT.textSize(2);
-	EsploraTFT.text("Select Mode", 10, 10);
-	EsploraTFT.text("1: Slider", 25, 30);
-	EsploraTFT.text("2: Joystick", 25, 50);
-	EsploraTFT.text("3: Tilt", 25, 70);
-	EsploraTFT.text("4: Auto", 25, 90);
+	EsploraTFT.text("Select Mode", 15, 5);
+	EsploraTFT.text("1: Slider", 20, 25);
+	EsploraTFT.text("2: Joystick", 20, 45);
+	EsploraTFT.text("3: Tilt", 20, 65);
+	EsploraTFT.text("4: Auto", 20, 85);
 	EsploraTFT.textSize(1);
+	EsploraTFT.stroke(0, 255, 255);
+	EsploraTFT.text("Press 4 during play to", 15, 105);
+	EsploraTFT.text("toggle sound", 50, 115);
 	EsploraTFT.noStroke();
 
 	while (!checkModeButtons()) {
