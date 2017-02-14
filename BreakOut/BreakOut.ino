@@ -22,7 +22,7 @@
 //enum paddleModeEnum {JOYSTICK, SLIDER, TILT, AUTO} paddleMode = TILT;
 //enum resultEnum {LOSS, WIN};
 
-static const char paddleModeStringJoystick[] = "Joystick";
+static const char paddleModeStringJoystick[] = "Joystk";
 static const char paddleModeStringSlider[] =   "Slider";
 static const char paddleModeStringTilt[] =     "Tilt";
 static const char paddleModeStringAuto[] =     "Auto";
@@ -32,6 +32,7 @@ const char* modeStrings[] = {paddleModeStringJoystick, paddleModeStringSlider, p
 static const char modeLbl[] = "";
 static const char scoreLbl[] = "Score:";
 static const char livesLbl[] = "x";
+static const char levelLbl[] = "Lvl:";
 static const char loseTxt[] = "GAME OVER";
 static const char winTxt[] = "YOU WIN!!!";
 
@@ -64,32 +65,37 @@ int paddleY = screenY - 5;
 int paddleLastX = ballX;			//gives the last paddle position something
 const int paddleH = 4;
 const int bricksWide = 14;		//number of bricks across the screen
-const int bricksTall = 10;		//number of bricks down the screen
+const int maxBricksTall = 15;		//number of bricks down the screen
+int bricksTall = 10;
 const int brickW = 10;				//width of bricks in pixels
 const int brickH = 5;				 //highth of brick in pixels
 int totalBricks = 0;					//tracks how many bricks are drawn on the screen
-int bricksHit = 0;						//track how many bricks have been hit
-boolean brick[bricksWide][bricksTall];		//tracks if each individual brick is active
+int bricksHit = 0;						//track how many bricks have been hit in current level
+int score = 0;							//track score for game
+boolean brick[bricksWide][maxBricksTall];		//tracks if each individual brick is active
 int colBrickCount[bricksWide];
 boolean sound = LOW;				 //a flag to turn sound on/off
 int ballHits = 0;						//keep track of number of times bal is hit, incrementing ball speed as more hits accrue
 const int statusY = 2;
 const int modeLblX = 1;
-const int livesLblX = 45;
-const int scoreLblX = screenX - 57;
+const int livesLblX = 41;
+const int levelLblX = 63;
+const int scoreLblX = screenX - 61;
 const int screenTopY = 10;
 const int loseTxtX = 30;
 const int loseTxtY = 65;
 const int winTxtX = 30;
 const int winTxtY = 65;
 const int countdownTxtX = screenX/2 - 3;
-const int countdownTxtY = 65;
+int countdownTxtY = 65;
 
 const int modeX = 2;//modeLblX + strlen(modeLbl) * 6 + 2;
 const int scoreX = scoreLblX + strlen(scoreLbl) * 6 + 2;
+const int levelX = levelLblX + strlen(levelLbl) * 6;
 const int livesX = livesLblX + strlen(livesLbl) * 6 + 2;
 const int startLives = 3;
 int lives = startLives;
+int level = 1;
 
 int tiltZero = 0;		//offset from level reading, taken when go into tilt mode, to allow for level not reading zero
 const int tiltDeadZone = 6;
@@ -261,47 +267,58 @@ int mapBallToCol(int* col1, int* col2) {
 }
 
 void autoPaddle() {
-	//keep the paddle centered under the ball, but randomly move the paddle around by 1/3 paddle width, to prevent
+	//keep the paddle under the ball, but randomly move the paddle around by 1/3 paddle width, to prevent
 	// getting 'stuck' in one place, in the case of a straight vertical hit
-	paddleX = ballX - modeParams[paddleMode].paddleW/2 + ballW/2;
+	paddleX = ballX - modeParams[paddleMode].paddleW/2;
 
-	int col1;
-	int col2;
-	static int lastPaddleX;
-
-	if (ballY == paddleY - paddleH - 1) {
-		mapBallToCol(&col1, &col2);
-		if (col1 >= 0) {		//mapBallToCol will return col1 = -1, if ball is outside of block range
-//			Serial.print(col1);
-//			Serial.print(":");
-//			Serial.println(colBrickCount[col1]);
-			if (ballXDir == 0 && colBrickCount[col1] == 0 && colBrickCount[col2] == 0) {
-//				Serial.print("Empty vertical: ");
-//				Serial.print(ballX);
-//				Serial.print(":");
-//				Serial.print(col1);
-//				Serial.print(":");
-//				Serial.println(col2);
-//				int o = map(random(2), 0, 1, -1, 1) * modeParams[paddleMode].paddleW/3;
-//				paddleX += o;
-//				Serial.print("offset: ");
-//				Serial.println(o);
-				paddleX += map(random(2), 0, 1, -1, 1) * modeParams[paddleMode].paddleW/3;
-			} else {
-				paddleX += map(random(3), 0, 2, -1, 1) * modeParams[paddleMode].paddleW/3;
-			}
-		}
-
-		if (paddleX == 0) {
-			paddleX += modeParams[paddleMode].paddleW/3;
-		}
-
-		if (paddleX >= screenX - modeParams[paddleMode].paddleW) {
-			//paddleX =-  paddleW/3;
-			paddleX = screenX - modeParams[paddleMode].paddleW;
-		}
+	if (ballY>paddleY-ballYDir-ballW - 1 & ballY<paddleY) {
+	//if (ballY > paddleY - paddleH - 1 && ballY != paddleY) {
+		paddleX += map(random(3), 0, 2, -1, 1) * modeParams[paddleMode].paddleW/3;
 	}
 }
+
+//void autoPaddle() {
+//	//keep the paddle centered under the ball, but randomly move the paddle around by 1/3 paddle width, to prevent
+//	// getting 'stuck' in one place, in the case of a straight vertical hit
+//	paddleX = ballX - modeParams[paddleMode].paddleW/2 + ballW/2;
+//
+//	int col1;
+//	int col2;
+//	static int lastPaddleX;
+//
+//	if (ballY == paddleY - paddleH - 1) {
+//		mapBallToCol(&col1, &col2);
+//		if (col1 >= 0) {		//mapBallToCol will return col1 = -1, if ball is outside of block range
+////			Serial.print(col1);
+////			Serial.print(":");
+////			Serial.println(colBrickCount[col1]);
+//			if (ballXDir == 0 && colBrickCount[col1] == 0 && colBrickCount[col2] == 0) {
+////				Serial.print("Empty vertical: ");
+////				Serial.print(ballX);
+////				Serial.print(":");
+////				Serial.print(col1);
+////				Serial.print(":");
+////				Serial.println(col2);
+////				int o = map(random(2), 0, 1, -1, 1) * modeParams[paddleMode].paddleW/3;
+////				paddleX += o;
+////				Serial.print("offset: ");
+////				Serial.println(o);
+//				paddleX += map(random(2), 0, 1, -1, 1) * modeParams[paddleMode].paddleW/3;
+//			} else {
+//				paddleX += map(random(3), 0, 2, -1, 1) * modeParams[paddleMode].paddleW/3;
+//			}
+//		}
+//
+//		if (paddleX < modeParams[paddleMode].paddleW/3) {
+//			paddleX += 1/3*modeParams[paddleMode].paddleW;
+//		}
+//
+//		if (paddleX >= screenX - 4/3*modeParams[paddleMode].paddleW) {
+//			//paddleX =-  paddleW/3;
+//			paddleX = screenX - modeParams[paddleMode].paddleW -  2/3*modeParams[paddleMode].paddleW;
+//		}
+//	}
+//}
 
 void joystickPaddle() {
 	paddleX=map(Esplora.readJoystickX(),-512, 512, screenX,0)-modeParams[paddleMode].paddleW/2;
@@ -439,6 +456,7 @@ void moveBall(void){
 					brick[a][b]=LOW;							 //set the brick inactive in the array
 					ballYDir = -ballYDir;					//change ball direction
 					bricksHit=bricksHit+1;				 //add to the bricks hit count
+					score++;
 					if (sound == HIGH){
 						Esplora.tone(330,10);
 					}
@@ -496,7 +514,14 @@ void moveBall(void){
 	}
 	//check if there are any more bricks
 	if (bricksHit==totalBricks){
-		gameEnd(WIN);
+		bricksTall++;
+		level++;
+		if (bricksTall <= maxBricksTall) {
+			delay(1000);
+			newLevel();
+		} else {
+			gameEnd(WIN);
+		}
 	}
 	//calculate the new position for the ball
 	ballX=ballX+ballXDir;	//move the ball x
@@ -517,6 +542,7 @@ void showLabels() {
 	EsploraTFT.stroke(0,255,0);
 	EsploraTFT.text(modeLbl, modeLblX, statusY);
 	EsploraTFT.text(livesLbl, livesLblX, statusY);
+	EsploraTFT.text(levelLbl, levelLblX, statusY);
 	EsploraTFT.text(scoreLbl, scoreLblX, statusY);
 	EsploraTFT.noStroke();
 
@@ -534,7 +560,7 @@ void showMode() {
 void showLives() {
 	char sLives[2];
 	EsploraTFT.fill(0,0,0);
-	EsploraTFT.rect(livesX - 1, statusY, 2*5, 6);
+	EsploraTFT.rect(livesX - 1, statusY, 2*5 - 2, 6);
 	EsploraTFT.stroke(0,255,0);
 	itoa(lives, sLives, 10);
 	EsploraTFT.text(sLives, livesX, statusY);
@@ -543,15 +569,22 @@ void showLives() {
 }
 
 void showLevel() {
+	char sLevel[2];
+	EsploraTFT.fill(0,0,0);
+	EsploraTFT.rect(levelX - 1, statusY, 2*5, 6);
+	EsploraTFT.stroke(0,255,0);
+	itoa(level, sLevel, 10);
+	EsploraTFT.text(sLevel, levelX, statusY);
+	EsploraTFT.noStroke();
 
 }
 
 void showScore() {
 	char sBricksHit[4];
-	EsploraTFT.fill(0,0,0);				//erase the old paddle
-	EsploraTFT.rect(scoreX - 1, statusY, 3*5, 6);
+	EsploraTFT.fill(0,0,0);
+	EsploraTFT.rect(scoreX - 1, statusY, screenX - (scoreX - 1), 6);
 	EsploraTFT.stroke(0,255,0);
-	itoa(bricksHit * modeParams[paddleMode].scoreMultiplier, sBricksHit, 10);
+	itoa(score * modeParams[paddleMode].scoreMultiplier, sBricksHit, 10);
 	EsploraTFT.text(sBricksHit, scoreLblX + 5*7 + 2, statusY);
 	EsploraTFT.noStroke();
 
@@ -596,12 +629,13 @@ void showCountdown() {
 
 		EsploraTFT.stroke(0, 0, 255);
 		EsploraTFT.textSize(2);
-		EsploraTFT.text(secsBuff, countdownTxtX, countdownTxtY);
+		//EsploraTFT.text(secsBuff, countdownTxtX, countdownTxtY);
+		EsploraTFT.text(secsBuff, countdownTxtX, bricksTall*brickH+10 + 10);
 		EsploraTFT.noStroke();
 		delayWithPaddle(1000);
 		EsploraTFT.noStroke();
 		EsploraTFT.fill(0,0,0);
-		EsploraTFT.rect(countdownTxtX, countdownTxtY, 15, 15);
+		EsploraTFT.rect(countdownTxtX, bricksTall*brickH+10 + 10, 15, 15);
 	}
 
 	EsploraTFT.setTextSize(1);
@@ -611,12 +645,21 @@ void showCountdown() {
 void newGame() {					//setup a new game
 	EsploraTFT.background(0,0,0);	//set the screen black
 	getMode();
-	bricksHit = 0;
+	bricksTall = 10;
+	score = 0;
+	level = 1;
 	lives = startLives;
 
+	newLevel();
+
+}
+
+void newLevel() {
+	bricksHit = 0;
 	setupBlocks();											//routine draws the bricks on the screen
 
 	newScreen();
+
 }
 
 void newScreen(void) {						//setup for next ball of same game
@@ -629,6 +672,7 @@ void newScreen(void) {						//setup for next ball of same game
 	showLabels();
 	showMode();
 	showLives();
+	showLevel();
 	showScore();
 	showCountdown();
 
@@ -637,12 +681,18 @@ void newScreen(void) {						//setup for next ball of same game
 void setupBlocks(void){
 	//assign the individual bricks to active in an array
 	totalBricks = 0;
+	bricksHit = 0;
+
 	for (int x = 0; x < bricksWide; x++) {
 		colBrickCount[x] = 0;
 	}
 	for (int a=0; a<bricksWide; a++){
-		for (int b=0; b<bricksTall; b++){
-			brick[a][b]=HIGH;
+		for (int b=0; b<maxBricksTall; b++){
+			if (b < bricksTall) {
+				brick[a][b]=HIGH;
+			} else {
+				brick[a][b] = LOW;
+			}
 //			if (b < 3 && a > 10) {
 //				brick[a][b] = HIGH;
 //				colBrickCount[a]++;
