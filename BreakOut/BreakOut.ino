@@ -19,7 +19,7 @@
 //ENHANCEMENT: add levels, with additional rows of blocks at completion of each level
 //ENHANCEMENT: look for mode button during game end display, to allow skipping delay and mode selection screen
 
-//enum paddleModeEnum {JOYSTICK, SLIDER, TILT} paddleMode = TILT;
+//enum paddleModeEnum {JOYSTICK, SLIDER, TILT, AUTO} paddleMode = TILT;
 //enum resultEnum {LOSS, WIN};
 
 static const char paddleModeStringJoystick[] = "Joystick";
@@ -29,8 +29,9 @@ static const char paddleModeStringAuto[] =     "Auto";
 
 const char* modeStrings[] = {paddleModeStringJoystick, paddleModeStringSlider, paddleModeStringTilt, paddleModeStringAuto};
 
-static const char modeLbl[] = "Mode:";
+static const char modeLbl[] = "";
 static const char scoreLbl[] = "Score:";
+static const char livesLbl[] = "x";
 static const char loseTxt[] = "GAME OVER";
 static const char winTxt[] = "YOU WIN!!!";
 
@@ -74,6 +75,7 @@ boolean sound = LOW;				 //a flag to turn sound on/off
 int ballHits = 0;						//keep track of number of times bal is hit, incrementing ball speed as more hits accrue
 const int statusY = 2;
 const int modeLblX = 1;
+const int livesLblX = 45;
 const int scoreLblX = screenX - 57;
 const int screenTopY = 10;
 const int loseTxtX = 30;
@@ -83,8 +85,11 @@ const int winTxtY = 65;
 const int countdownTxtX = screenX/2 - 3;
 const int countdownTxtY = 65;
 
-const int modeX = modeLblX + strlen(modeLbl) * 6 + 2;
+const int modeX = 2;//modeLblX + strlen(modeLbl) * 6 + 2;
 const int scoreX = scoreLblX + strlen(scoreLbl) * 6 + 2;
+const int livesX = livesLblX + strlen(livesLbl) * 6 + 2;
+const int startLives = 3;
+int lives = startLives;
 
 int tiltZero = 0;		//offset from level reading, taken when go into tilt mode, to allow for level not reading zero
 const int tiltDeadZone = 6;
@@ -153,7 +158,7 @@ void setup(){
 //	Serial.print(":");
 //	Serial.println(c2);
 //}
-	newScreen();							 //routine to redraw a fresh screen
+	newGame();							 //routine to redraw a fresh screen
 }
 void loop(){
 	paddle();									//routine to read the slider and draw the paddle
@@ -175,23 +180,23 @@ void drawPaddle() {
 }
 
 void paddle() {
-		switch (paddleMode) {
-			case JOYSTICK:
-				joystickPaddle();
-				break;
+	switch (paddleMode) {
+		case JOYSTICK:
+			joystickPaddle();
+			break;
 
-			case SLIDER:
-				sliderPaddle();
-				break;
+		case SLIDER:
+			sliderPaddle();
+			break;
 
-			case TILT:
-				tiltPaddle();
-				break;
+		case TILT:
+			tiltPaddle();
+			break;
 
-			case AUTO:
-				autoPaddle();
-				break;
-		}
+		case AUTO:
+			autoPaddle();
+			break;
+	}
 
 	if (paddleX<1){	//if the paddle tries to go too far left
 		paddleX=1;		 //position it on the far left
@@ -318,7 +323,6 @@ void setupNewBall() {
 	ballLastY = ballY;
 	ballXDir = map(random(3), 0, 2, -1, 1);
 	ballYDir = abs(ballYDir);
-	bricksHit = 0;
 }
 
 void checkSoundButton() {
@@ -403,7 +407,7 @@ void gameEnd(enum resultEnum result) {
 
 	EsploraTFT.stroke(0,0,0);
 	delay(1000);
-	newScreen();
+	newGame();
 }
 
 void moveBall(void){
@@ -479,8 +483,16 @@ void moveBall(void){
 		}
 	}
 	//check if the ball went past the paddle
-	if (ballY>paddleY+10){
-		gameEnd(LOSS);
+	if (ballY>paddleY+10) {
+		if (lives > 1) {
+			lives--;
+			delay(1000);
+			newScreen();
+		} else {
+			lives--;
+			showLives();
+			gameEnd(LOSS);
+		}
 	}
 	//check if there are any more bricks
 	if (bricksHit==totalBricks){
@@ -504,24 +516,40 @@ void moveBall(void){
 void showLabels() {
 	EsploraTFT.stroke(0,255,0);
 	EsploraTFT.text(modeLbl, modeLblX, statusY);
+	EsploraTFT.text(livesLbl, livesLblX, statusY);
 	EsploraTFT.text(scoreLbl, scoreLblX, statusY);
 	EsploraTFT.noStroke();
 
 }
 
 void showMode() {
-	EsploraTFT.fill(0,0,0);				//erase the old paddle
-	EsploraTFT.rect(modeX, statusY, modeX + 6*5, statusY + 6);
+	EsploraTFT.fill(0,0,0);
+	EsploraTFT.rect(modeX, statusY, 6*5, 6);
 	EsploraTFT.stroke(0,255,0);
-	EsploraTFT.text(modeStrings[paddleMode], modeLblX + 5*6 + 2, statusY);
+	EsploraTFT.text(modeStrings[paddleMode], modeLblX, statusY);
 	EsploraTFT.noStroke();
+
+}
+
+void showLives() {
+	char sLives[2];
+	EsploraTFT.fill(0,0,0);
+	EsploraTFT.rect(livesX - 1, statusY, 2*5, 6);
+	EsploraTFT.stroke(0,255,0);
+	itoa(lives, sLives, 10);
+	EsploraTFT.text(sLives, livesX, statusY);
+	EsploraTFT.noStroke();
+
+}
+
+void showLevel() {
 
 }
 
 void showScore() {
 	char sBricksHit[4];
 	EsploraTFT.fill(0,0,0);				//erase the old paddle
-	EsploraTFT.rect(scoreX - 1, statusY, scoreX + 3*5, statusY + 6);
+	EsploraTFT.rect(scoreX - 1, statusY, 3*5, 6);
 	EsploraTFT.stroke(0,255,0);
 	itoa(bricksHit * modeParams[paddleMode].scoreMultiplier, sBricksHit, 10);
 	EsploraTFT.text(sBricksHit, scoreLblX + 5*7 + 2, statusY);
@@ -580,18 +608,27 @@ void showCountdown() {
 
 }
 
-void newScreen(void) {						//this is the setup for clearing the screen for a new game
+void newGame() {					//setup a new game
 	EsploraTFT.background(0,0,0);	//set the screen black
 	getMode();
+	bricksHit = 0;
+	lives = startLives;
+
+	setupBlocks();											//routine draws the bricks on the screen
+
+	newScreen();
+}
+
+void newScreen(void) {						//setup for next ball of same game
 	setupNewBall();
 	paddleLastX = ballX;					 //set the last paddle position to something (makes the game draw a new paddle every time)
 	paddle();											//routine draws the paddle on the screen
 	setupNewPaddle();
 	drawPaddle();
-	setupBlocks();											//routine draws the bricks on the screen
 	ballHits = 0;
 	showLabels();
 	showMode();
+	showLives();
 	showScore();
 	showCountdown();
 
