@@ -87,7 +87,6 @@ const int loseTxtY = 65;
 const int winTxtX = 30;
 const int winTxtY = 65;
 const int countdownTxtX = screenX/2 - 3;
-int countdownTxtY = 65;
 
 const int modeX = 2;//modeLblX + strlen(modeLbl) * 6 + 2;
 const int scoreX = scoreLblX + strlen(scoreLbl) * 6 + 2;
@@ -98,8 +97,10 @@ int lives = startLives;
 int level = 1;
 
 int tiltZero = 0;		//offset from level reading, taken when go into tilt mode, to allow for level not reading zero
-const int tiltDeadZone = 6;
-const int tiltSlowZone = 80;
+const int tiltDeadZone = 2;
+const int tiltSlowZone = 120;
+const int tiltDelayMillis = 2;
+const int joystickDelayMillis = 7;
 
 //int freeRam () {
 //  extern int __heap_start, *__brkval;
@@ -134,11 +135,11 @@ void setup(){
 	modeParams[SLIDER].speedIncreaseIncrementMillis = 2;
 	modeParams[SLIDER].maxSpeedDelayMillis = 16;
 	modeParams[SLIDER].scoreMultiplier = 1;
-	modeParams[TILT].initialSpeedDelayMillis = 50;
+	modeParams[TILT].initialSpeedDelayMillis = 40;
 	modeParams[TILT].paddleW = 30;
 	modeParams[TILT].speedIncreaseHitCount = 2;
 	modeParams[TILT].speedIncreaseIncrementMillis = 1;
-	modeParams[TILT].maxSpeedDelayMillis = 32;
+	modeParams[TILT].maxSpeedDelayMillis = 30;
 	modeParams[TILT].scoreMultiplier = 1;
 	modeParams[AUTO].initialSpeedDelayMillis = 15;
 	modeParams[AUTO].paddleW = 20;
@@ -229,6 +230,9 @@ void sliderPaddle() {
 void tiltPaddle() {
 	int tiltVal = Esplora.readAccelerometer(X_AXIS) - tiltZero;
 	int scaledTiltVal = 0;
+	static long lastMillis = 0;
+
+	if (millis() - lastMillis > tiltDelayMillis) {
 
 	if (abs(tiltVal) > tiltDeadZone) {
 		if (tiltVal < 0) {
@@ -245,6 +249,8 @@ void tiltPaddle() {
 			}
 		}
 		paddleX = paddleX + scaledTiltVal;
+	}
+	lastMillis = millis();
 	}
 }
 
@@ -267,13 +273,51 @@ int mapBallToCol(int* col1, int* col2) {
 }
 
 void autoPaddle() {
+	int col1;
+	int col2;
+	mapBallToCol(&col1, &col2);
+	if (colBrickCount[col1] == 0 || colBrickCount[col2] == 0) {
+		//Esplora.writeRGB(255, 0, 0);
+		rgbWrite(255, 0, 0, 8);
+	} else {
+//		Esplora.writeRGB(0, 255, 0);
+		rgbWrite(0, 255, 0, 8);
+	}
 	//keep the paddle under the ball, but randomly move the paddle around by 1/3 paddle width, to prevent
 	// getting 'stuck' in one place, in the case of a straight vertical hit
-	paddleX = ballX - modeParams[paddleMode].paddleW/2;
+	paddleX = ballX - modeParams[paddleMode].paddleW/2 + ballW/2;
 
-	if (ballY>paddleY-ballYDir-ballW - 1 & ballY<paddleY) {
-	//if (ballY > paddleY - paddleH - 1 && ballY != paddleY) {
-		paddleX += map(random(3), 0, 2, -1, 1) * modeParams[paddleMode].paddleW/3;
+	if (ballY>paddleY-ballYDir-ballW - 1 & ballY<paddleY && ballYDir > 0) {
+		//first, if ball is along screen edge, put the paddle all the way to that edge
+		if (ballX >= screenX - ballW) {
+			paddleX = screenX - modeParams[paddleMode].paddleW;
+		} else {
+			int col1;
+			int col2;
+			mapBallToCol(&col1, &col2);
+
+			//if in one of the end columns, move the paddle so that it'll cause a bounce off of the side wall
+			if (col1 < 0) {
+				if (paddleX < screenX/2) {
+					// 1/3 paddle width from left/zero edge
+					paddleX = modeParams[paddleMode].paddleW/3;
+				} else {
+					// 1/3 paddle width from right/screenX edge
+					paddleX = screenX - modeParams[paddleMode].paddleW - modeParams[paddleMode].paddleW/3;
+				}
+			} else {
+				//if ball is coming down vertically...
+	//			if (ballXDir == 0) {
+					//if in an empty playable column, force paddle 1/3 to left or right, to avoid sending straight back up an empty column
+					if (colBrickCount[col1] == 0 && colBrickCount[col2] == 0) {
+						paddleX += map(random(2), 0, 1, -1, 1) * modeParams[paddleMode].paddleW/3;
+					//if no an empty column, then randomly offset 1/3 or send straight back up
+					} else {
+						paddleX += map(random(3), 0, 2, -1, 1) * modeParams[paddleMode].paddleW/3;
+					}
+	//			}
+			}
+		}
 	}
 }
 
@@ -321,7 +365,12 @@ void autoPaddle() {
 //}
 
 void joystickPaddle() {
-	paddleX=map(Esplora.readJoystickX(),-512, 512, screenX,0)-modeParams[paddleMode].paddleW/2;
+	static long lastMillis = 0;
+
+	if (millis() - lastMillis > joystickDelayMillis) {
+		paddleX = map(Esplora.readJoystickX(),-512, 512, screenX - modeParams[paddleMode].paddleW, 0);// - modeParams[paddleMode].paddleW/2;
+		lastMillis = millis();
+	}
 }
 
 void setupNewPaddle() {
@@ -397,9 +446,9 @@ void gameEnd(enum resultEnum result) {
 		for (int i=0; i<75; i++){
 			EsploraTFT.stroke(255, 0, 0);
 			EsploraTFT.setTextSize(2);
-			EsploraTFT.text(loseTxt, loseTxtX, loseTxtY);
+			EsploraTFT.text(loseTxt, loseTxtX, bricksTall*brickH+10 + 10);
 			EsploraTFT.stroke(0,0,255);
-			EsploraTFT.text(loseTxt, loseTxtX, loseTxtY);
+			EsploraTFT.text(loseTxt, loseTxtX, bricksTall*brickH+10 + 10);
 		}
 	} else {
 		EsploraTFT.fill(0,0,0);
@@ -414,9 +463,9 @@ void gameEnd(enum resultEnum result) {
 		for (int i=0; i<10; i++){
 			EsploraTFT.stroke(255, 0, 0);
 			EsploraTFT.setTextSize(2);
-			EsploraTFT.text(winTxt, winTxtX, winTxtY);
+			EsploraTFT.text(winTxt, winTxtX, bricksTall*brickH+10 + 10);
 			EsploraTFT.stroke(0, 255, 0);
-			EsploraTFT.text(winTxt, winTxtX, winTxtY);
+			EsploraTFT.text(winTxt, winTxtX, bricksTall*brickH+10 + 10);
 			delay(10);
 		}
 	}
@@ -713,6 +762,33 @@ void setupBlocks(void){
 				EsploraTFT.rect(a*brickW+10,b*brickH+10,brickW,brickH );
 			}
 		}
+	}
+}
+
+//**TODO: Move to EsporaJimS library
+const byte RED_PIN    = 5;
+const byte BLUE_PIN   = 9;
+const byte GREEN_PIN  = 10;
+
+void rgbWrite(byte r, byte g, byte b, byte i) {
+	static byte lastR = 0;
+	static byte lastG = 0;
+	static byte lastB = 0;
+	byte iR = map(r, 0, 255, 0, i);
+	byte iG = map(g, 0, 255, 0, i);
+	byte iB = map(b, 0, 255, 0, i);
+
+	if (r != lastR) {
+		analogWrite(RED_PIN, iR);
+		lastR = iR;
+	}
+	if (g != lastG) {
+		analogWrite(GREEN_PIN, iG);
+		lastG = iG;
+	}
+	if (b != lastB) {
+		analogWrite(BLUE_PIN, iB);
+		lastB = iB;
 	}
 }
 
