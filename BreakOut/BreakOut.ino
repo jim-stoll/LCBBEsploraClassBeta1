@@ -26,6 +26,8 @@
 //ENHANCEMENT: consider providing a bailout button - at least in auto mode
 //ENHANCEMENT: further tuning of tilt paddle response is needed
 //EXPERIMENT: try using additive positioning w/ joystick, vs direct positioning
+//FIX: standardize use of stroke/noStroke
+//FIX: standardize function names
 
 //enum paddleModeEnum {JOYSTICK, SLIDER, TILT, AUTO} paddleMode = TILT;
 //enum resultEnum {LOSS, WIN};
@@ -45,12 +47,12 @@ static const char loseTxt[] = "GAME OVER";
 static const char winTxt[] = "YOU WIN!!!";
 
 typedef struct {
-	long initialSpeedDelayMillis;			//initial 'speed' of ball (this is actually a millis delay between ball moves)
+	long initialSpeedDelayMillis;		//initial 'speed' of ball (this is actually a millis delay between ball moves)
 	int paddleW;						//paddle width in pixels
-	int paddleSections;
-	int speedIncreaseHitCount;		//number of ball/paddle hits between progressive speed increases
-	int speedIncreaseIncrementMillis; //number of millis by which to increase ball speed at each progressive increase (actually decrease in ball delay)
-	int maxSpeedDelayMillis;					//'max' delay millis (actually minimum...), which sets max speed for ball
+	int paddleSections;					//each half of the paddle is divided into this many sections, with the innermost section of each side being combined into one center section. The center section imparts zero influence on the X travel of a ball. Each succeeding outer section imparts one (positive or negative, depending on ball direction) unit to the ball's horizontal direction, up to the max value of an outermost section.
+	int speedIncreaseHitCount;			//number of ball/paddle hits between progressive speed increases
+	int speedIncreaseIncrementMillis; 	//number of millis by which to increase ball speed at each progressive increase (actually decrease in ball delay)
+	int maxSpeedDelayMillis;			//'max' delay millis (actually minimum...), which sets max speed for ball
 	int scoreMultiplier;
 } modeParamsStruct;
 
@@ -72,6 +74,9 @@ int ballDelay = 30;					 //milliseconds to wait to refresh ball position
 int paddleX = screenX / 2;		//paddle start position
 int paddleY = screenY - 5;
 int paddleLastX = ballX;			//gives the last paddle position something
+int effectivePaddleW = 0;
+int paddleDivisionW = 0;
+
 const int paddleH = 4;
 const int bricksWide = 16;		//number of bricks across the screen
 const int maxBricksTall = 15;		//number of bricks down the screen
@@ -143,7 +148,7 @@ void setup(){
 	modeParams[JOYSTICK].scoreMultiplier = 2;
 	modeParams[SLIDER].initialSpeedDelayMillis = 25;
 	modeParams[SLIDER].paddleW = 20;
-	modeParams[SLIDER].paddleSections = 4;
+	modeParams[SLIDER].paddleSections = 3;
 	modeParams[SLIDER].speedIncreaseHitCount = 2;
 	modeParams[SLIDER].speedIncreaseIncrementMillis = 2;
 	modeParams[SLIDER].maxSpeedDelayMillis = 16;
@@ -198,6 +203,14 @@ void drawPaddle() {
 	EsploraTFT.rect(paddleLastX,paddleY,modeParams[paddleMode].paddleW,paddleH);
 	EsploraTFT.fill(255,255,255);	//draw the new paddle
 	EsploraTFT.rect(paddleX,paddleY,modeParams[paddleMode].paddleW,paddleH);
+	EsploraTFT.stroke(192, 192, 192);
+
+	for (int x = paddleDivisionW/2; x < modeParams[paddleMode].paddleW/2; x = x + paddleDivisionW) {
+		EsploraTFT.line(paddleX + modeParams[paddleMode].paddleW/2 + x, paddleY, paddleX + modeParams[paddleMode].paddleW/2 + x, paddleY + paddleH);
+		EsploraTFT.line(paddleX + modeParams[paddleMode].paddleW/2 - x - 1, paddleY, paddleX + modeParams[paddleMode].paddleW/2 - x - 1, paddleY + paddleH);
+	}
+
+	EsploraTFT.noStroke();
 
 }
 
@@ -293,10 +306,10 @@ void autoPaddle() {
 	mapBallToCol(&col1, &col2);
 	if (colBrickCount[col1] == 0 || colBrickCount[col2] == 0) {
 		//Esplora.writeRGB(255, 0, 0);
-		rgbWrite(255, 0, 0, 8);
+//		rgbWrite(255, 0, 0, 8);
 	} else {
 //		Esplora.writeRGB(0, 255, 0);
-		rgbWrite(0, 255, 0, 8);
+//		rgbWrite(0, 255, 0, 8);
 	}
 	//keep the paddle under the ball, but randomly move the paddle around by 1/3 paddle width, to prevent
 	// getting 'stuck' in one place, in the case of a straight vertical hit
@@ -350,8 +363,6 @@ void setupNewPaddle() {
 	EsploraTFT.rect(0, paddleY, screenX, paddleH);
 	ballDelay = modeParams[paddleMode].initialSpeedDelayMillis;
 	EsploraTFT.noStroke();
-	drawPaddle();
-
 }
 
 void setupNewBall() {
@@ -375,8 +386,7 @@ void checkSoundButton() {
 bool checkModeButtons(void) {
 	if (Esplora.readButton(SWITCH_LEFT) == LOW) {
 		paddleMode = JOYSTICK;
-		setupNewPaddle();
-		delay(250);
+
 		return true;
 	}
 
@@ -390,22 +400,19 @@ bool checkModeButtons(void) {
 			delay(50);
 		}
 		tiltZero = tiltSum/tiltSamples;
-		setupNewPaddle();
-		delay(250);
+
 		return true;
 	}
 
 	if (Esplora.readButton(SWITCH_DOWN) == LOW) {
 		paddleMode = SLIDER;
-		setupNewPaddle();
-		delay(250);
+
 		return true;
 	}
 
 	if (Esplora.readButton(SWITCH_RIGHT) == LOW) {
 		paddleMode = AUTO;
-		setupNewPaddle();
-		delay(250);
+
 		return true;
 	}
 
@@ -508,17 +515,15 @@ void moveBall(void){
 			&& ballY < paddleY){
 
 		int ballOnPaddleX = paddleX + modeParams[paddleMode].paddleW/2 - ballW/2 - ballX;
-		int effectivePaddleW = modeParams[paddleMode].paddleW/2 - ballW/2 + ballW - 1;
-		int paddleDivisionW = effectivePaddleW/modeParams[paddleMode].paddleSections + 1;
 		int paddleSection = ballOnPaddleX/paddleDivisionW;
 
 		ballXDir = ballXDir - paddleSection;
 
-		if (ballXDir < -ballXmax){			//this wont allow the ball to go too fast left/right
-			ballXDir = -ballXmax;
-		}
-		else if (ballXDir > ballXmax){	//this wont allow the ball to go too fast left/right
-			ballXDir = ballXmax;
+		//don't allow the ball to exceed the max pos or neg direction of the outermost section of the paddle
+		if (ballXDir < -1 * modeParams[paddleMode].paddleW/2 / paddleDivisionW) {
+			ballXDir = -1 * modeParams[paddleMode].paddleW/2 / paddleDivisionW;
+		} else if (ballXDir > modeParams[paddleMode].paddleW/2 / paddleDivisionW) {
+			ballXDir = modeParams[paddleMode].paddleW/2 / paddleDivisionW;
 		}
 
 		ballYDir = -ballYDir;				 //change direction up/down
@@ -659,6 +664,11 @@ void getMode() {
 
 	while (!checkModeButtons()) {
 	}
+	setupNewPaddle();
+	delay(250);
+
+	effectivePaddleW = modeParams[paddleMode].paddleW/2 - ballW/2 + ballW - 1;
+	paddleDivisionW = effectivePaddleW/modeParams[paddleMode].paddleSections + 1;
 
 	EsploraTFT.background(0,0,0);	//set the screen black
 	EsploraTFT.stroke(0, 0, 0);
