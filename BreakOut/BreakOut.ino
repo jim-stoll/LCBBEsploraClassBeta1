@@ -79,7 +79,7 @@ int paddleDivisionW = 0;
 
 const int paddleH = 4;
 const int bricksWide = 16;		//number of bricks across the screen
-const int maxBricksTall = 15;		//number of bricks down the screen
+const int maxBricksTall = 16;		//number of bricks down the screen
 int bricksTall = 10;
 const int brickW = 10;				//width of bricks in pixels
 const int brickH = 5;				 //highth of brick in pixels
@@ -87,7 +87,7 @@ const int marginW = (screenX - bricksWide * brickW)/2;	//space on sides of scree
 int totalBricks = 0;					//tracks how many bricks are drawn on the screen
 int bricksHit = 0;						//track how many bricks have been hit in current level
 int score = 0;							//track score for game
-boolean brick[bricksWide][maxBricksTall];		//tracks if each individual brick is active
+int brick[bricksWide][maxBricksTall];		//tracks if each individual brick is active, and its point value, if so (0 = inactive, >0 = point value
 int colBrickCount[bricksWide];
 boolean sound = LOW;				 //a flag to turn sound on/off
 int ballHits = 0;						//keep track of number of times bal is hit, incrementing ball speed as more hits accrue
@@ -132,7 +132,7 @@ char *getFreeRamAsText() {
 
 
 void setup(){
-	Serial.begin(115200);
+//	Serial.begin(115200);
 	// initialize the display
 	EsploraTFT.begin();
 	// set the background the black
@@ -478,7 +478,7 @@ void moveBall(void){
 	//we run through the array, if the brick is active, check its position against the balls position
 	for (int a=0; a<bricksWide; a++){
 		for (int b=0; b<bricksTall; b++){
-			if (brick[a][b] == HIGH){
+			if (brick[a][b] > 0){
 				if (ballX > a * brickW + marginW - ballW
 						&& ballX < a * brickW + brickW + marginW
 						&& ballY > b * brickH + screenTopY - ballW
@@ -486,10 +486,10 @@ void moveBall(void){
 					//we determined that a brick was hit
 					EsploraTFT.fill(0,0,0);				//erase the brick
 					EsploraTFT.rect(a * brickW + marginW, b * brickH + screenTopY, brickW, brickH);
-					brick[a][b]=LOW;							 //set the brick inactive in the array
 					ballYDir = -ballYDir;					//change ball direction
 					bricksHit=bricksHit+1;				 //add to the bricks hit count
-					score++;
+					score = score + brick[a][b];
+					brick[a][b] = 0;							 //set the brick inactive in the array
 					if (sound == HIGH){
 						Esplora.tone(330, 10);
 					}
@@ -572,7 +572,7 @@ void moveBall(void){
 	}
 	//check if there are any more bricks
 	if (bricksHit == totalBricks){
-		bricksTall++;
+		bricksTall = bricksTall + 2;
 		level++;
 		if (bricksTall <= maxBricksTall) {
 			delay(1000);
@@ -751,11 +751,13 @@ void setupBlocks(void){
 	}
 	for (int a=0; a < bricksWide; a++){
 		for (int b=0; b < maxBricksTall; b++){
-			if (b < bricksTall) {
-				brick[a][b] = HIGH;
+			if (b <= bricksTall) {
+				brick[a][b] = bricksTall/2 - (b/2);
 			} else {
-				brick[a][b] = LOW;
+				brick[a][b] = 0;
 			}
+//			Serial.print(brick[a][b]);
+//			Serial.print(":");
 //			if (b < 3 && a > 10) {
 //				brick[a][b] = HIGH;
 //				colBrickCount[a]++;
@@ -764,15 +766,29 @@ void setupBlocks(void){
 //			}
 		}
 		colBrickCount[a] = bricksTall;
+//		Serial.println();
 	}
+
+	//Esplora uses order BGR, vs RGB - go figure...
+	unsigned char brickColors[8][3] = {
+			{0, 0, 255},		//red
+			{0, 100, 255},		//orange
+			{229, 204, 255},	//pink
+			{255, 51, 153},		//purple
+			{255, 51, 51},		//blue
+			{255, 204, 229},	//lavender
+			{0, 255, 0},		//green
+			{0, 255, 255}		//yellow
+	};
+
 	EsploraTFT.stroke(0, 0, 0);
 	//now run trough the array and draw the bricks on the screen
 	for (int a=0; a < bricksWide; a++){
-		for (int b = 0; b < bricksTall; b++){
-			int c = map(b, 0, bricksWide, 0, 255);
-			if (brick[a][b] == HIGH) {
+		for (int b = bricksTall - 1; b >= 0; b--) {
+			if (brick[a][b] > 0) {
 				totalBricks += 1;
-				EsploraTFT.fill(c, 255-c/2, 255);
+				int i = b/2 + (maxBricksTall - bricksTall)/2;
+				EsploraTFT.fill(brickColors[i][0], brickColors[i][1], brickColors[i][2]);
 				EsploraTFT.rect(a * brickW + marginW, b*brickH + screenTopY, brickW, brickH );
 			}
 		}
