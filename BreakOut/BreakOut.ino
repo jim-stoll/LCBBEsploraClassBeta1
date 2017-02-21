@@ -319,14 +319,18 @@ void autoPaddle() {
 //		Esplora.writeRGB(0, 255, 0);
 //		rgbWrite(0, 255, 0, 8);
 	}
-	//keep the paddle under the ball, but randomly move the paddle around by 1/3 paddle width, to prevent
-	// getting 'stuck' in one place, in the case of a straight vertical hit
+	//keep the paddle under the ball, but randomly move the paddle around by a paddle sectyion, to prevent
+	// getting 'stuck' in one place, such as in the case of a straight vertical hit
 	paddleX = ballX - paddleW/2 + ballW/2;
 
-	if ((ballY > paddleY - ballYDir  -ballW - 1 && ballY < paddleY) && ballYDir > 0) {
-		//first, if ball is along screen edge, put the paddle all the way to that edge
-		if (ballX >= screenX - ballW) {
-			paddleX = screenX - paddleW;
+	if ((ballY > paddleY - ballYDir - ballW - 1 && ballY < paddleY) && ballYDir > 0) {
+		//if ball is along the left edge (less than 1/2 paddle width from left edge)
+		if (ballX < paddleW/2 - ballW/2) {
+			//position the paddle so ball hits on a left-going segment, to cause a bounce off of the left wall
+			paddleX = ballX - paddleW/2 + ballW/2 + paddleDivisionW;
+		//if ball is along the right edge
+		} else if (ballX > screenX - paddleW/2 - ballW/2) {
+			paddleX = ballX - paddleW/2 + ballW/2 - paddleDivisionW;
 		} else {
 			int col1;
 			int col2;
@@ -378,7 +382,8 @@ void setupNewPaddle() {
 }
 
 void setupNewBall() {
-	ballX = random(screenX - ballW);
+	//keep new ball at least 1/2 paddleW away from left/right edge, as sometimes ball will get stuck along edge at start...
+	ballX = random(screenX - paddleW) + paddleW/2;
 //	ballX = screenX/2 - ballW/2;
 	ballY = screenTopY + bricksTall * brickH + screenTopY;
 	ballLastX = ballX;
