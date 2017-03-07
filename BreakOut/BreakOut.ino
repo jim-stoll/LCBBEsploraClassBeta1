@@ -110,10 +110,6 @@ const int levelX = levelLblX + strlen(levelLbl) * 6;
 const int livesX = livesLblX + strlen(livesLbl) * 6 + 2;
 
 int tiltZeroOffset = 0;							//level offset used to compensate for a non-level 'zero' position when tilt mode is selected
-const int tiltDeadZone = 2;						//amount of wiggle room allowed, in which tilt movement is ignored (to prevent a hyper-sensitive tilt response)
-const int tiltSlowZone = 120;					//amount of tilt that is interpreted as a 'little' tilt (resulting in slower paddle movement - to again prevent over-sensitive tilt response)
-const unsigned long tiltDelayMillis = 2;		//milliseconds delay between processing tilt reading (again, to de-tune the tilt response a bit)
-const unsigned long joystickDelayMillis = 7;	//milliseoncs delay beteen processing joystick reading (to also de-tune the joystick response)
 
 //int freeRam () {
 //  extern int __heap_start, *__brkval;
@@ -213,6 +209,7 @@ void drawPaddle() {
 
 }
 
+//obtain paddle position from appropriate input device
 void readPaddle() {
 	switch (paddleMode) {
 		case JOYSTICK:
@@ -243,58 +240,47 @@ void readPaddle() {
 
 }
 
+//update paddle position from slider
 void readPaddleSlider() {
 	//read the slider, map it to the screen width, then subtract the width of the paddle
 	//this gives us the position relative the left corner of the paddle
 	paddleX = map(Esplora.readSlider(), 0, 1023, screenW, 0) - paddleW/2;
 }
 
+//update paddle position from X Axis tilt
 void readPaddleTilt() {
-	int tiltVal = Esplora.readAccelerometer(X_AXIS) - tiltZeroOffset;
-	int scaledTiltVal = 0;
-	static unsigned long lastMillis = 0;
+	static const int tiltDeadZone = 2;					//amount of wiggle room allowed, in which tilt movement is ignored (to prevent a hyper-sensitive tilt response)
+	static const unsigned long tiltDelayMillis = 2;		//milliseconds delay between processing tilt reading (again, to de-tune the tilt response a bit)
+	static const int maxRange = 4;						//max amount to add to paddle position on each read (smaller value leads to less drastic paddle movement)
+	static const float smoothAlpha = 0.7;				//smoothing factor, > 0 and < 1 - larger value dampens movement more, by weighting prior value more than current value
+	static int smoothVal = 0;							//smoothed value, calculated from current value, last value (because its static) and smoothing factor
+	static unsigned long lastMillis = 0;				//last time the tilt value was read
+	int tiltVal = Esplora.readAccelerometer(X_AXIS) - tiltZeroOffset;	//the actual, 'raw' value of the tilt sensor (-512 to 512)
 
+	//only read the tilt sensor every so often (too often results in fast/jerky movement)
 	if (millis() - lastMillis > tiltDelayMillis) {
 
+		//if haven't moved out of the 'dead' zone (right in the middle), don't move the paddle - provides some stability while trying to hold still
 		if (abs(tiltVal) > tiltDeadZone) {
-			if (tiltVal < 0) {
-				if (tiltVal < -1*tiltSlowZone) {
-					scaledTiltVal = 2;
-				} else {
-					scaledTiltVal = 1;
-				}
-			} else {
-				if (tiltVal > tiltSlowZone) {
-					scaledTiltVal = -2;
-				} else {
-					scaledTiltVal = -1;
-				}
+
+			//keep the tilt value within the min/max range
+			if (tiltVal < -1*maxRange) {
+				tiltVal = -1*maxRange;
+			} else if (tiltVal > maxRange) {
+				tiltVal = maxRange;
 			}
-			paddleX = paddleX + scaledTiltVal;
+
+			//because smoothVal is static, this calculation uses the prior smooth value in calculating the new smooth value
+			smoothVal = smoothAlpha * smoothVal + (1 - smoothAlpha) * tiltVal;
+			paddleX = paddleX - smoothVal;
+
 		}
 
 		lastMillis = millis();
 	}
 }
 
-void mapBallToCol(int* col1, int* col2) {
-	if (ballX >= brickW && ballX <= brickW*numBricksW + brickW - 1) {
-		*col1 = ballX/brickW - 1;
-		if (ballX >= *col1 * brickW + brickW + ballW + 1) {
-			*col2 = *col1 + 1;
-
-			if (*col2 > numBricksW - 1) {
-				*col2 = *col1;
-			}
-		} else {
-			*col2 = *col1;
-		}
-	} else {
-		*col1 = -1;
-		*col2 = -1;
-	}
-}
-
+//update paddle position when in auto mode
 void readPaddleAuto() {
 	int col1;
 	int col2;
@@ -348,12 +334,32 @@ void readPaddleAuto() {
 	}
 }
 
+//update paddle position from joystick
 void readPaddleJoystick() {
+	static const unsigned long joystickDelayMillis = 7;	//milliseoncs delay beteen processing joystick reading (to also de-tune the joystick response)
 	static unsigned long lastMillis = 0;
 
 	if (millis() - lastMillis > joystickDelayMillis) {
 		paddleX = map(Esplora.readJoystickX(), -512, 512, screenW - paddleW, 0);
 		lastMillis = millis();
+	}
+}
+
+void mapBallToCol(int* col1, int* col2) {
+	if (ballX >= brickW && ballX <= brickW*numBricksW + brickW - 1) {
+		*col1 = ballX/brickW - 1;
+		if (ballX >= *col1 * brickW + brickW + ballW + 1) {
+			*col2 = *col1 + 1;
+
+			if (*col2 > numBricksW - 1) {
+				*col2 = *col1;
+			}
+		} else {
+			*col2 = *col1;
+		}
+	} else {
+		*col1 = -1;
+		*col2 = -1;
 	}
 }
 
