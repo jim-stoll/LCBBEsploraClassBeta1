@@ -4,9 +4,8 @@
  *  Created on: Mar 15, 2017
  *      Author: jstoll
  */
-
-
-
+#ifndef ESPLORA_UTILS_H_
+#define ESPLORA_UTILS_H_
 
 int freeRam () {
   extern int __heap_start, *__brkval;
@@ -45,3 +44,16 @@ void rgbWrite(byte r, byte g, byte b, byte i) {
 		lastB = iB;
 	}
 }
+
+unsigned long getRandomSeed() {
+	// return value with 32 random bits set
+	byte bitNum = 32;
+	unsigned long seed=0;
+	while (bitNum--) {
+		seed = (seed<<1) | ((Esplora.readLightSensor() * Esplora.readAccelerometer(X_AXIS) * Esplora.readAccelerometer(Y_AXIS) * Esplora.readAccelerometer(Z_AXIS))&1);
+	}
+
+	return seed;
+}
+
+#endif // ESPLORA_UTILS_H_

@@ -2,6 +2,8 @@
 #include <TFT.h>
 #include <SPI.h>
 
+#include "EsploraUtils.h"
+
 //**COMMENT OUT the  next line, if working in the Arduino IDE
 #include "BreakOut.h"
 
@@ -146,6 +148,8 @@ void setupModeParams() {
 //the setup method of the program - runs just once, when power is first applied (or after reset)
 void setup() {
 //	Serial.begin(115200);
+	//seed the random generator from as random a source as possible on the Esplora (no unused Analog inputs - the usual approach)
+	randomSeed(getRandomSeed());
 
 	EsploraTFT.begin();
 
