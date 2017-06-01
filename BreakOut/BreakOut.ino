@@ -4,13 +4,6 @@
 
 #include "EsploraUtils.h"
 
-//**COMMENT OUT the  next line, if working in the Arduino IDE
-#include "BreakOut.h"
-
-//** UNCOMMENT the next 2 lines, if working in the Arduino IDE
-//enum paddleModeEnum {JOYSTICK, SLIDER, TILT, AUTO} paddleMode = TILT;
-//enum resultEnum {LOSS, WIN};
-
 const int screenW = EsploraTFT.width();		//convenience const for screen width
 const int screenH = EsploraTFT.height();	//convenience const for screen height
 const int screenTopY = 0;					//top of the play area of the screen (above this is the status bar info)
