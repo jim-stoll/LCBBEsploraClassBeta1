@@ -8,17 +8,8 @@
 #include "BreakOut.h"
 
 //** UNCOMMENT the next 2 lines, if working in the Arduino IDE
-//enum paddleModeEnum {JOYSTICK, SLIDER, TILT, AUTO} paddleMode = TILT;
+//enum paddleModeEnum {JOYSTICK, SLIDER, TILT} paddleMode = TILT;
 //enum resultEnum {LOSS, WIN};
-
-//TODO:
-//ENHANCEMENT: consider bonus drops
-//ENHANCEMENT: look for mode button during game end display, to allow skipping delay and mode selection screen
-//ENHANCEMENT: consider providing a bailout button - at least in auto mode
-//ENHANCEMENT: further tuning of tilt paddle response is needed
-//EXPERIMENT: try using additive positioning w/ joystick, vs direct positioning
-//FIX: standardize use of stroke/noStroke
-//FIX: standardize function names
 
 const char paddleModeStringJoystick[] = "Joystk";
 const char paddleModeStringSlider[] =   "Slider";
@@ -50,34 +41,33 @@ modeParamsStruct modeParams[4];
 const int screenW = EsploraTFT.width();		//convenience const for screen width
 const int screenH = EsploraTFT.height();	//convenience const for screen height
 const int screenTopY = 10;					//top of the play area of the screen (above this is the status bar info)
-const int paddleH = 4;						//height in px of paddle
+
 const int ballW = 4;					 	//ball size in px (ball is assumed to be square)
 int ballX = 0;								//horizontal position on screen of top left corner of ball
 int ballY = 0;								//vertical position on screen of top left corner of ball
 int ballXComp = 1;							//X component of ball vector (negative = movement left, positive = movement right)
 int ballYComp = 2;							//Y component of ball vector (negative = movement up the screen, positive = movement down the screen)
-unsigned long ballProcessDelay = 0;					 //milliseconds between processing of ball - controls ball speed (set from mode params)
-int paddleW = 0;							//paddle width in px - set from mode params, then shrinks at each level progression (if/as specified in mode params)
-int paddleX = 0;							//horizontal position on screen of top left corner of paddle
+unsigned long ballProcessDelay = 25;					 //milliseconds between processing of ball - controls ball speed (set from mode params)
+
+const int paddleH = 4;				//height in px of paddle
+int paddleW = 20;				//paddle width in px - set from mode params, then shrinks at each level progression (if/as specified in mode params)
+int paddleX = 0;				//horizontal position on screen of top left corner of paddle
 const int paddleY = screenH - paddleH;		//vertical position on screen of top left corner of paddle
-int lastPaddleX = 0;						//used to erase last paddle position, and determine if paddle has moved (for redraw)
-int paddleDivisionW = 0;					//width in px of each division of the paddle, as determined by paddle width and paddle sections mode params, and dynamically as paddle shrinks at each level progression
+int lastPaddleX = 0;				//used to erase last paddle position, and determine if paddle has moved (for redraw)
+int paddleDivisionW = 0;			//width in px of each division of the paddle, as determined by paddle width and paddle sections mode params, and dynamically as paddle shrinks at each level progression
+const int paddleSections = 3;			//each *half* of the paddle is divided into this many sections, with the innermost section of each side being combined into one center section that is twice the width of the other sections. The center section imparts zero influence on the X travel of a ball. Each succeeding outer section imparts one (positive or negative, depending on ball direction) unit to the ball's horizontal direction, up to the max value of an outermost section.
 
 const int numBricksW = 16;					//number of bricks on screen horizontally
-//TEMP const int maxBricksH = 16;					//max number of bricks on screen vertically - this is a physical limitation of how many bricks will fit on screen, and still allow paddle and ball movement below. (if exceeded (due to increased brick rows per screen, know that game is over)
-//should be const for simplified version, but splash screen is using this in 'upscale' version
-int maxBricksH = 24;
-int numBricksH = 10;						//number of bricks on screen vertically, at present (grows at each level progression)
+const int maxBricksH = 16;					//max number of bricks on screen vertically - this is a physical limitation of how many bricks will fit on screen, and still allow paddle and ball movement below. (if exceeded (due to increased brick rows per screen, know that game is over)
+const int initialNumBrcksH = 10;				//starting number of brick rows
+int numBricksH = initialNumBrcksH;						//number of bricks on screen vertically, at present (grows at each level progression)
 const int brickW = 10;						//width of bricks in pixels
 const int brickH = 5;				 		//height of brick in pixels
 const int marginW = (screenW - numBricksW * brickW)/2;	//space on sides of screen, between bricks and edge (if any) - auto calculated based on screenW and brickW
 int numBricks = 0;							//tracks how many bricks are drawn for a level
 int numBricksHit = 0;						//track how many bricks have been hit in current level (compare num to numHit, to determine when level is complete)
 int score = 0;								//track score for game
-//TEMP int bricks[numBricksW][maxBricksH];			//2D array of bricks - tracks if each individual brick is active, and its point value, if so (0 = inactive, >0 = point value
-//again, when maxBricksH is a constant, then it can be used in array declaration (such as for simplified version), but for upscale version, its not constant, so can't be used for array dimension
-int bricks[numBricksW][24];
-//**REFACTOR - if this won't work for improving auto mode, just trash it (at least remove for simpler version?)
+int bricks[numBricksW][maxBricksH];			//2D array of bricks - tracks if each individual brick is active, and its point value, if so (0 = inactive, >0 = point value
 int colBrickCount[numBricksW];				//track number of bricks remaining in each brick column
 
 const int startLives = 3;					//number of lives that a game starts with
@@ -98,8 +88,8 @@ const int loseTxtX = 30;
 const int loseTxtY = 65;
 const int winTxtX = 30;
 const int winTxtY = 65;
-const int countdownTxtX = screenW/2 - 5;	//center countdown text (assuming countdown text font is 10 px wide)
 const int belowBricksTextMarginH = 10;		//how far below current lowest level of bricks, the upper left corner of the countdown text should be placed
+const int countdownTxtX = screenW/2 - 5;	//center countdown text (assuming countdown text font is 10 px wide)
 
 //calculated constants for text positions of status values (these assume a font that is 6 px wide per character)
 const int modeX = modeLblX + strlen(modeLbl) * 6 + 2;
@@ -148,14 +138,13 @@ void setupModeParams() {
 //the setup method of the program - runs just once, when power is first applied (or after reset)
 void setup() {
 //	Serial.begin(115200);
+
 	//seed the random generator from as random a source as possible on the Esplora (no unused Analog inputs - the usual approach)
 	randomSeed(getRandomSeed());
 
 	EsploraTFT.begin();
 
 	setupModeParams();
-
-//	showSpashScreen();
 
 	newGame();
 }
@@ -232,7 +221,7 @@ void readPaddle() {
 void readPaddleSlider() {
 	//read the slider, map it to the screen width, then subtract the width of the paddle
 	//this gives us the position relative the left corner of the paddle
-	paddleX = map(Esplora.readSlider(), 0, 1023, screenW, 0) - paddleW/2;
+	paddleX = map(Esplora.readSlider(), 0, 1023, screenW - paddleW, 0);
 }
 
 //update paddle position from X Axis tilt
@@ -366,21 +355,8 @@ void newPaddle() {
 	EsploraTFT.rect(0, paddleY, screenW, paddleH);
 	EsploraTFT.noStroke();
 
-	//REFACTOR - this should probably be done elsewhere, vs in 'newPaddle'?
-	//setup ball
-	ballProcessDelay = modeParams[paddleMode].initialSpeedDelayMillis;
-
-	//determine how to divide the paddle up into the specified number of sections (from modeParams)
-	// to achieve proper horizontal component of bounce off of paddle
-	//start by determining the 'effective' paddle width (ie, what range of ball positions will result
-	// in a hit of the ball - left edge of ball could be off left edge of paddle, for instance, but
-	// still result in a hit of the ball, due to overlap of the right edge of the ball with the left
-	// edge of the paddle, thus the paddle is effectively wider than the number of pixels it occupies
-	//**NOTE that this 'effectiveWidth" is actually the effective width of one half of the paddle
-//	effectivePaddleW = paddleW/2 - ballW/2 + ballW - 1;
 	effectivePaddleW = paddleW/2 + ballW - 1;
-//	effectivePaddleW = (paddleW + ballW - 1)/2;
-//	effectivePaddleW = paddleW;//(paddleW)/2;
+
 	paddleDivisionW = effectivePaddleW/modeParams[paddleMode].paddleSections + 1;
 
 	lastPaddleX = -1;
@@ -405,7 +381,11 @@ bool checkModeButtons(void) {
 		int tiltSum = 0;
 		int tiltSamples = 20;
 		paddleMode = TILT;
+
+		//wait a moment for any movement associated w/ button press to stablize
 		delay(250);
+
+		//take a series of readings of the tilt, then average them, and assume this is the 'level' position
 		for (int x = 0; x < tiltSamples; x++) {
 			tiltSum += Esplora.readAccelerometer(X_AXIS);
 			delay(50);
@@ -427,6 +407,7 @@ bool checkModeButtons(void) {
 		return true;
 	}
 
+	//if no/valid button hit, return false, indicating no selection made
 	return false;
 }
 
@@ -462,7 +443,6 @@ void gameEnd(enum resultEnum result) {
 		}
 	}
 
-
 	EsploraTFT.stroke(0, 0, 0);
 	delay(1000);
 	newGame();
@@ -485,6 +465,7 @@ void processBall(void) {
 				Esplora.tone(230, 10);
 			}
 		}
+
 		//check if the ball hits the top of the screen
 		if (ballY <= screenTopY) {
 			//at top of screen ball direction will always be postive (ran into bug trying to just complement the direction)
@@ -493,6 +474,7 @@ void processBall(void) {
 				Esplora.tone(530, 10);
 			}
 		}
+
 		//check if ball hits bottom of bricks
 		//we run through the array, if the brick is active, check its position against the balls position
 		for (int a = 0; a < numBricksW; a++) {
@@ -559,7 +541,7 @@ void processBall(void) {
 		}
 
 		//check if the ball went past the paddle
-		if (ballY > paddleY + 10) { //**TODO: can +10 be replaced with paddleH or ballW?
+		if (ballY >= paddleY + paddleH) {
 			if (lives > 1) {
 				lives--;
 				delay(1000);
@@ -665,7 +647,7 @@ void getMode() {
 	EsploraTFT.textSize(1);
 	EsploraTFT.stroke(0, 255, 255);
 	EsploraTFT.text("Press 4 during play to", 15, 105);
-	EsploraTFT.text("toggle speaker", 50, 115);
+	EsploraTFT.text("toggle speaker", 40, 115);
 	EsploraTFT.noStroke();
 
 	//wait for a mode button to be pressed
@@ -716,7 +698,7 @@ void newGame() {
 	EsploraTFT.background(0, 0, 0);
 
 	getMode();
-	numBricksH = 10;
+	numBricksH = initialNumBrcksH;
 	score = 0;
 	level = 0;
 	lives = startLives;
@@ -730,6 +712,7 @@ void newLevel() {
 	numBricksHit = 0;
 
 	setupBricks();
+
 	paddleW = paddleW - (level - 1) * modeParams[paddleMode].perLevelPaddleShrinkPx;
 
 	//always make sure there is enough room to render all paddle sections, at least 3 px wide (2px for display, 1px for dividing line)
@@ -742,79 +725,14 @@ void newLevel() {
 
 }
 
-void showSpashScreen() {
-	EsploraTFT.background(0, 0, 0);
-	maxBricksH = 24;
-	numBricksH = 24;
-	setupBricks();
-	char logo1[] = "BREAK";
-	int logoLen1 = strlen(logo1);
-	char logo2[] = "OUT!";
-	int logoLen2 = strlen(logo2);
-
-	char ch[2];
-
-	EsploraTFT.stroke(255, 255, 255);
-	EsploraTFT.setTextSize(5);
-
-	for (int y = 0; y < 4; y++) {
-		for (int x = 0; x < logoLen1; x++) {
-			ch[0] = logo1[x];
-			ch[1] = 0;
-			EsploraTFT.text(ch, 0 + 33*x + y, 27 + y);
-		}
-		for (int x = 0; x < logoLen2; x++) {
-			ch[0] = logo2[x];
-			ch[1] = 0;
-			EsploraTFT.text(ch, 60 + 33*x + y, 77 + y);
-		}
-		delay(200);
-	}
-
-//	for (int x = 0; x < logoLen; x++) {
-//		for (int y = 0; y < 3; y++) {
-//			ch[0] = logo1[x];
-//			ch[1] = 0;
-//			EsploraTFT.text(ch, 0 + 33*x + y, 27 + y);
-//		}
-//	}
-
-//	char logo2[] = "OUT!";
-//	logoLen = strlen(logo2);
-
-//	for (int y = 0; y < 5; y++) {
-//		for (int x = 0; x < logoLen; x++) {
-//			ch[0] = logo2[x];
-//			ch[1] = 0;
-//			EsploraTFT.text(ch, 60 + 33*x + y, 77 + y);
-//		}
-//		delay(200);
-//	}
-//	for (int x = 0; x < logoLen; x++) {
-//		for (int y = 0; y < 3; y++) {
-//			ch[0] = logo2[x];
-//			ch[1] = 0;
-//			EsploraTFT.text(ch, 60 + 33*x + y, 77 + y);
-//		}
-//	}
-
-	EsploraTFT.noStroke();
-	EsploraTFT.setTextSize(1);
-	delay(3000);
-
-	maxBricksH = 16;
-	numBricksH = 10;
-
-}
-
 //setup screen for next ball
 void newScreen(void) {
 	newBall();
-	lastPaddleX = -1;		//set to impossible last position, so sure to draw the new paddle
-	readPaddle();											//routine draws the paddle on the screen
 	newPaddle();
+	readPaddle();
 	drawPaddle();
 	ballHits = 0;
+
 	showLabels();
 	showMode();
 	showLives();
@@ -829,6 +747,7 @@ void newBall() {
 	ballY = screenTopY + numBricksH * brickH + screenTopY;
 	ballXComp = map(random(3), 0, 2, -1, 1);
 	ballYComp = abs(ballYComp);
+	ballProcessDelay = modeParams[paddleMode].initialSpeedDelayMillis;
 }
 
 void setupBricks(void) {
@@ -869,7 +788,6 @@ void setupBricks(void) {
 
 	EsploraTFT.stroke(0, 0, 0);
 	//now run trough the array and draw the bricks on the screen
-	// 2 rows of each color, starting with the bottom-most color (highest brick array index), and working up
 	for (int a = 0; a < numBricksW; a++) {
 		for (int b = numBricksH - 1; b >= 0; b--) {
 			if (bricks[a][b] > 0) {
