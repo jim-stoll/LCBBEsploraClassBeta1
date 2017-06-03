@@ -122,14 +122,6 @@ void setupModeParams() {
 	modeParams[TILT].maxSpeedDelayMillis = 30;
 	modeParams[TILT].perLevelPaddleShrinkPx = 2;
 	modeParams[TILT].scoreMultiplier = 1;
-	modeParams[AUTO].initialSpeedDelayMillis = 15;
-	modeParams[AUTO].paddleW = 20;
-	modeParams[AUTO].paddleSections = 3;
-	modeParams[AUTO].speedIncreaseHitCount = 2;
-	modeParams[AUTO].speedIncreaseIncrementMillis = 1;
-	modeParams[AUTO].maxSpeedDelayMillis = 2;
-	modeParams[AUTO].perLevelPaddleShrinkPx = 2;
-	modeParams[AUTO].scoreMultiplier = 1;
 
 }
 
