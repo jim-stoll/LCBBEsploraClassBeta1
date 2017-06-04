@@ -42,6 +42,7 @@ int paddleX = 0;							//horizontal position on screen of top left corner of pad
 const int paddleY = screenH - paddleH;		//vertical position on screen of top left corner of paddle
 int lastPaddleX = 0;						//used to erase last paddle position, and determine if paddle has moved (for redraw)
 int paddleDivisionW = 0;					//width in px of each division of the paddle, as determined by paddle width and paddle sections mode params, and dynamically as paddle shrinks at each level progression
+const int paddleSections = 3;				//each *half* of the paddle is divided into this many sections, with the innermost section of each side being combined into one center section that is twice the width of the other sections. The center section imparts zero influence on the X travel of a ball. Each succeeding outer section imparts one (positive or negative, depending on ball direction) unit to the ball's horizontal direction, up to the max value of an outermost section.
 
 const int startLives = 3;					//number of lives that a game starts with
 int lives = startLives;						//counter for number of lives left
@@ -95,11 +96,6 @@ void drawPaddle() {
 		EsploraTFT.rect(lastPaddleX, paddleY, paddleW, paddleH);	//erase the paddle at its last position (by drawing a black paddle-sized rectangle at its old position)
 		EsploraTFT.fill(255, 255, 255);								//set fill color to white
 		EsploraTFT.rect(paddleX, paddleY, paddleW, paddleH);		//draw the paddle at its new position
-
-		EsploraTFT.stroke(192, 192, 192);							//set stroke color to grey (to draw paddle section dividers)
-
-		//turn off stroke, so that next item drawn doesn't have an outline
-		EsploraTFT.noStroke();
 
 		//save the current position as the 'last' position, so can compare next time, to see if it has moved
 		lastPaddleX = paddleX;
@@ -196,7 +192,7 @@ void newPaddle() {
 	
 	effectivePaddleW = paddleW/2 + ballW - 1;
 	
-	paddleDivisionW = effectivePaddleW/3 + 1;
+	paddleDivisionW = effectivePaddleW/paddleSections + 1;
 
 	lastPaddleX = -1;
 
@@ -365,7 +361,7 @@ void showMode() {
 	EsploraTFT.fill(0, 0, 0);
 	EsploraTFT.rect(modeX, statusY, 6*5, 7);
 	EsploraTFT.stroke(0, 255, 0);
-	EsploraTFT.text(modeStrings[paddleMode], modeLblX, statusY);
+	EsploraTFT.text(modeStrings[paddleMode], modeX, statusY);
 	EsploraTFT.noStroke();
 
 }
