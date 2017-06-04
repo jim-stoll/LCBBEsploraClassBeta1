@@ -1,6 +1,5 @@
 #include <Esplora.h>
 #include <TFT.h>
-#include <SPI.h>
 
 #include "EsploraUtils.h"
 
