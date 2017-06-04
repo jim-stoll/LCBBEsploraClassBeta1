@@ -72,11 +72,6 @@ void drawPaddle() {
 		EsploraTFT.fill(255, 255, 255);								//set fill color to white
 		EsploraTFT.rect(paddleX, paddleY, paddleW, paddleH);		//draw the paddle at its new position
 
-		EsploraTFT.stroke(192, 192, 192);							//set stroke color to grey (to draw paddle section dividers)
-
-		//turn off stroke, so that next item drawn doesn't have an outline
-		EsploraTFT.noStroke();
-
 		//save the current position as the 'last' position, so can compare next time, to see if it has moved
 		lastPaddleX = paddleX;
 	}
@@ -258,7 +253,7 @@ void showMode() {
 	EsploraTFT.fill(0, 0, 0);
 	EsploraTFT.rect(modeX, statusY, 6*5, 7);
 	EsploraTFT.stroke(0, 255, 0);
-	EsploraTFT.text(modeStrings[paddleMode], modeLblX, statusY);
+	EsploraTFT.text(modeStrings[paddleMode], modeX, statusY);
 	EsploraTFT.noStroke();
 
 }
