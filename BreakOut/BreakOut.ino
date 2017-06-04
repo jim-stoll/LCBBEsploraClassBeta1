@@ -598,7 +598,7 @@ void showMode() {
 	EsploraTFT.fill(0, 0, 0);
 	EsploraTFT.rect(modeX, statusY, 6*5, 7);
 	EsploraTFT.stroke(0, 255, 0);
-	EsploraTFT.text(modeStrings[paddleMode], modeLblX, statusY);
+	EsploraTFT.text(modeStrings[paddleMode], modeX, statusY);
 	EsploraTFT.noStroke();
 
 }
