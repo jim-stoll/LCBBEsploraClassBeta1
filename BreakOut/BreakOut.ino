@@ -56,7 +56,8 @@ void setup() {
 //the main loop of the program - executes continuously, as long as the device is powered
 void loop() {
 	readPaddle();
-	
+	drawPaddle();
+
 	processBall();
 }
 
@@ -93,15 +94,6 @@ void readPaddle() {
 			break;
 	}
 
-	//prevent paddle from moving off left or right sides of screen
-	if (paddleX < 0) {
-		paddleX = 0;
-	} else if (paddleX > screenW - paddleW) {
-		paddleX = screenW - paddleW;
-	}
-
-	drawPaddle();
-
 }
 
 //update paddle position from slider
@@ -136,6 +128,13 @@ void readPaddleTilt() {
 			//because smoothVal is static, this calculation uses the prior smooth value in calculating the new smooth value
 			smoothVal = smoothAlpha * smoothVal + (1 - smoothAlpha) * tiltVal;
 			paddleX = paddleX - smoothVal;
+
+			//prevent paddle from moving off left or right sides of screen
+			if (paddleX < 0) {
+				paddleX = 0;
+			} else if (paddleX > screenW - paddleW) {
+				paddleX = screenW - paddleW;
+			}
 
 		}
 
