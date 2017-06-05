@@ -24,7 +24,7 @@ const char levelLbl[] = "Lvl:";
 const char loseTxt[] = "GAME OVER";
 const char winTxt[] = "YOU WIN!!!";
 
-typedef struct {
+struct modeParamsStruct {
 	unsigned long initialSpeedDelayMillis;		//initial 'speed' of ball (this is actually a millis delay between ball moves)
 	int paddleW;								//paddle width in pixels
 	int paddleSections;							//each *half* of the paddle is divided into this many sections, with the innermost section of each side being combined into one center section that is twice the width of the other sections. The center section imparts zero influence on the X travel of a ball. Each succeeding outer section imparts one (positive or negative, depending on ball direction) unit to the ball's horizontal direction, up to the max value of an outermost section.
@@ -33,9 +33,9 @@ typedef struct {
 	unsigned long maxSpeedDelayMillis;			//'max' delay millis (actually minimum...), which sets max speed for ball
 	int perLevelPaddleShrinkPx;
 	int scoreMultiplier;
-} modeParamsStruct;
+};
 
-modeParamsStruct modeParams[4];
+struct modeParamsStruct modeParams[4];
 
 const int screenW = EsploraTFT.width();		//convenience const for screen width
 const int screenH = EsploraTFT.height();	//convenience const for screen height
