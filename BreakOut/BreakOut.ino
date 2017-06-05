@@ -604,43 +604,34 @@ void setupBricks(void) {
 	numBricks = 0;
 	numBricksHit = 0;
 
+	//array of BGR colors for bricks - items at top of array (ie, brickColors[col][0] will be at bottom of display)
+	// so that purple is always bottom 2 rows, blue is always next up, etc, with new pairs of rows added at each new level
+	//maxBricksH/2 assumes 2 rows of each color in brick display
+	const unsigned char brickColors[maxBricksH/2][3] = {
+			{255, 51, 153},		//purple
+			{255, 51, 51},		//blue
+			{255, 204, 229},	//lavender
+			{0, 255, 0},		//green
+			{0, 255, 255},		//yellow
+			{225, 0, 255},		//pink
+			{0, 100, 255},		//orange
+			{0, 0, 255}			//red
+	};
+
+	EsploraTFT.stroke(0, 0, 0);
+
 	for (int a = 0; a < numBricksW; a++) {
 		for (int b = 0; b < maxBricksH; b++) {
-			if (b <= numBricksH) {
-				bricks[a][b] = numBricksH/2 - (b/2);
+			if (b < numBricksH) {
+				int i = numBricksH/2 - (b/2);
+				bricks[a][b] = i;
+				EsploraTFT.fill(brickColors[i-1][0], brickColors[i-1][1], brickColors[i-1][2]);
+				EsploraTFT.rect(a * brickW + marginW, b*brickH + screenTopY, brickW, brickH);
+				numBricks += 1;
 			} else {
 				bricks[a][b] = 0;
 			}
 		}
 	}
 
-	//Esplora uses order BGR, vs RGB - go figure...
-	const unsigned char brickColors[12][3] = {
-			{0, 0, 255},		//red
-			{0, 100, 255},		//orange
-			{225, 0, 255},		//pink
-			{0, 255, 255},		//yellow
-			{0, 255, 0},		//green
-			{255, 204, 229},	//lavender
-			{255, 51, 51},		//blue
-			{255, 51, 153},		//purple
-			{0, 255, 0},		//green
-			{255, 204, 229},	//lavender
-			{255, 51, 51},		//blue
-			{255, 51, 153}		//purple
-
-	};
-
-	EsploraTFT.stroke(0, 0, 0);
-	//now run trough the array and draw the bricks on the screen
-	for (int a = 0; a < numBricksW; a++) {
-		for (int b = numBricksH - 1; b >= 0; b--) {
-			if (bricks[a][b] > 0) {
-				numBricks += 1;
-				int i = b/2 + (maxBricksH - numBricksH)/2;
-				EsploraTFT.fill(brickColors[i][0], brickColors[i][1], brickColors[i][2]);
-				EsploraTFT.rect(a * brickW + marginW, b*brickH + screenTopY, brickW, brickH );
-			}
-		}
-	}
 }
