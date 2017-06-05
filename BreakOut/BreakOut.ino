@@ -24,6 +24,7 @@ void setup() {
 //the main loop of the program - executes continuously, as long as the device is powered
 void loop() {
 	readPaddle();
+	drawPaddle();
 }
 
 //erase the old paddle position, and draw new paddle at new position
@@ -54,8 +55,6 @@ void readPaddle() {
 		paddleX = screenW - paddleW;
 	}
 
-	drawPaddle();
-
 }
 
 //update paddle position from slider
@@ -74,7 +73,7 @@ void newPaddle() {
 	EsploraTFT.rect(0, paddleY, screenW, paddleH);
 	EsploraTFT.noStroke();
 
-	lastPaddleX = -1;
+	lastPaddleX = -1;		//set to impossible last position, so sure to draw the new paddle
 
 }
 
@@ -87,8 +86,7 @@ void newGame() {
 
 //setup screen for next ball
 void newScreen(void) {
-	lastPaddleX = -1;		//set to impossible last position, so sure to draw the new paddle
-	readPaddle();											//routine draws the paddle on the screen
+	readPaddle();
 	newPaddle();
 	drawPaddle();
 }
