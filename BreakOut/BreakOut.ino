@@ -254,69 +254,10 @@ void readPaddleTilt() {
 	}
 }
 
-//update paddle position when in auto mode
-void readPaddleAuto() {
-	int col1;
-	int col2;
-	mapBallToCol(&col1, &col2);
-
-	//keep the paddle under the ball, but randomly move the paddle around by a paddle section, to prevent
-	// getting 'stuck' in one place, such as in the case of a straight vertical hit
-	paddleX = ballX - paddleW/2 + ballW/2;
-
-	//if ball is moving downward, and ballY < paddleY (ie, above paddle), and ball is within a ball width of the paddle (ie, about to hit paddle)
-	if (ballYComp > 0 && (ballY < paddleY && ballY > paddleY - ballYComp - ballW - 1)) {
-		//if ball is alont
-		if (ballX < paddleW/2 - ballW/2) {
-
-		}
-		//first, if ball is along screen edge, put the paddle all the way to that edge
-		if (ballX >= screenW - ballW) {
-			paddleX = screenW - paddleW;
-		} else {
-			int col1;
-			int col2;
-			mapBallToCol(&col1, &col2);
-
-			//if in one of the end columns, move the paddle so that it'll cause a bounce off of the side wall
-			if (col1 < 0) {
-				if (paddleX < screenW/2) {
-					// 1/3 paddle width from left/zero edge
-					paddleX = paddleDivisionW;//paddleW/3;
-				} else {
-					// 1/3 paddle width from right/screenX edge
-					paddleX = screenW - paddleW - paddleDivisionW;
-				}
-			} else {
-				//if ball is coming down vertically...
-	//			if (ballXComp == 0) {
-					//if in an empty playable column, force paddle 1 paddle division left or right, to avoid sending straight back up an empty column
-					if (colBrickCount[col1] == 0 && colBrickCount[col2] == 0) {
-						paddleX += map(random(2), 0, 1, -1, 1) * paddleDivisionW;
-					//if no an empty column, then randomly offset one section width or send straight back up
-					} else {
-						paddleX += map(random(3), 0, 2, -1, 1) * paddleDivisionW;
-					}
-	//			}
-			}
-		}
-	}
-}
-
-//update paddle position from joystick
-void readPaddleJoystick() {
-	static const unsigned long joystickDelayMillis = 7;	//milliseoncs delay beteen processing joystick reading (to also de-tune the joystick response)
-	static unsigned long lastMillis = 0;
-
-	if (millis() - lastMillis > joystickDelayMillis) {
-		paddleX = map(Esplora.readJoystickX(), -512, 512, screenW - paddleW, 0);
-		lastMillis = millis();
-	}
-}
-
 //determine brick column from ball position (used by autoplay mode)
-//ball can possibly span 2 columns (positioned in space 'between' columns), so alters both
+//- ball can possibly span 2 columns (positioned in space 'between' columns), so alters both
 //passed pointer values. If only in one column, both values are the same.
+//- if ball is in a margin column along the edges (depending on brick and field width), then return -1 for both values
 void mapBallToCol(int* col1, int* col2) {
 	//make sure the ball is actually within the width of the bricks
 	if (ballX >= brickW && ballX <= brickW*numBricksW + brickW - 1) {
@@ -342,7 +283,66 @@ void mapBallToCol(int* col1, int* col2) {
 	}
 }
 
-//REFACTOR - examine the *paddle methods, and make sure they're being used/called sensibly
+//update paddle position when in auto mode
+void readPaddleAuto() {
+	int col1;
+	int col2;
+	mapBallToCol(&col1, &col2);
+
+	//keep the paddle under the ball
+	paddleX = ballX - paddleW/2 + ballW/2;
+
+	//make adjustments to avoid missing ball at edges, and to introduce some randomness to the hits (vs paddle always centered under ball)
+
+	//if ball is moving downward, and ballY < paddleY (ie, above paddle), and ball is within a ball width of the paddle (ie, about to hit paddle)
+	if (ballYComp > 0 && (ballY < paddleY && ballY > paddleY - ballYComp - ballW - 1)) {
+
+		//if ball is along far left edge, be sure paddle is all the way over to the left
+		if (ballX <= ballW/2) {
+			paddleX = 0;
+		//if ball is along far right edge, be sure paddle is all the way over to the right (right edge of paddle on right edge of screen)
+		} else if (ballX >= screenW - ballW/2) {
+			paddleX = screenW - paddleW;
+		} else {
+
+			//get the brick column that the ball is in
+			// (ball can span 2 columns, so returns 2 column numbers - same value if not spanning column, negative value if in left or right margin area)
+			mapBallToCol(&col1, &col2);
+
+			//if in one of the end columns, move the paddle one division inward, so that it'll cause a bounce off of that side wall
+			if (col1 < 0) {
+				if (paddleX < screenW/2) {
+					// 1 paddle division from left edge
+					paddleX = paddleDivisionW;//paddleW/3;
+				} else {
+					// 1 paddle division from right edge
+					paddleX = screenW - paddleW - paddleDivisionW;
+				}
+			//otherwise, ball is in general play
+			} else {
+				//if in an empty playable column, force paddle 1 paddle division left or right, to avoid sending straight back up an empty column repeatedly
+				if (colBrickCount[col1] == 0 && colBrickCount[col2] == 0) {
+					paddleX += pow(-1, random(2)) * paddleDivisionW;		//map random value of 0 or 1 to -1 or +1
+				//if not an empty column, then randomly offset one section width left or right, or send straight back up
+				} else {
+					paddleX += map(random(3), 0, 2, -1, 1) * paddleDivisionW;
+				}
+			}
+		}
+	}
+}
+
+//update paddle position from joystick
+void readPaddleJoystick() {
+	static const unsigned long joystickDelayMillis = 7;	//milliseoncs delay beteen processing joystick reading (to also de-tune the joystick response)
+	static unsigned long lastMillis = 0;
+
+	if (millis() - lastMillis > joystickDelayMillis) {
+		paddleX = map(Esplora.readJoystickX(), -512, 512, screenW - paddleW, 0);
+		lastMillis = millis();
+	}
+}
+
 //Setup a new paddle (called at start of game, after lost ball and between levels)
 void newPaddle() {
 	int effectivePaddleW = 0;
