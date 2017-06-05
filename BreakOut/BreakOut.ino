@@ -317,7 +317,7 @@ void processBall(void) {
 		}
 
 		//check if the ball went past the paddle
-		if (ballY > paddleY + 10) { //**TODO: can +10 be replaced with paddleH or ballW?
+		if (ballY > paddleY + paddleH) {
 			if (lives > 1) {
 				lives--;
 				delay(1000);
