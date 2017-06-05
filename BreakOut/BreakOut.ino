@@ -676,7 +676,7 @@ void showCountdown() {
 	char secsBuff[2];
 
 	for (int secs = 3; secs > 0; secs--) {
-		sprintf(secsBuff, "%d", secs);
+		itoa(secs, secsBuff, 10);
 
 		EsploraTFT.stroke(0, 0, 255);
 		EsploraTFT.textSize(2);
