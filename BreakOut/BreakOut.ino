@@ -668,6 +668,7 @@ void delayWithPaddle(unsigned long delayMillis) {
 
 	while (millis() - startMillis < delayMillis) {
 		readPaddle();
+		drawPaddle();
 	}
 }
 
