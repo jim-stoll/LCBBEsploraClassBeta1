@@ -53,7 +53,6 @@ int paddleX = 0;				//horizontal position on screen of top left corner of paddle
 const int paddleY = screenH - paddleH;		//vertical position on screen of top left corner of paddle
 int lastPaddleX = 0;				//used to erase last paddle position, and determine if paddle has moved (for redraw)
 int paddleDivisionW = 0;			//width in px of each division of the paddle, as determined by paddle width and paddle sections mode params, and dynamically as paddle shrinks at each level progression
-const int paddleSections = 3;			//each *half* of the paddle is divided into this many sections, with the innermost section of each side being combined into one center section that is twice the width of the other sections. The center section imparts zero influence on the X travel of a ball. Each succeeding outer section imparts one (positive or negative, depending on ball direction) unit to the ball's horizontal direction, up to the max value of an outermost section.
 
 const int numBricksW = 16;					//number of bricks on screen horizontally
 const int maxBricksH = 16;					//max number of bricks on screen vertically - this is a physical limitation of how many bricks will fit on screen, and still allow paddle and ball movement below. (if exceeded (due to increased brick rows per screen, know that game is over)
