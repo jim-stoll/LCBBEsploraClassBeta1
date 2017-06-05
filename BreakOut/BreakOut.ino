@@ -769,7 +769,7 @@ void setupBricks(void) {
 	}
 
 	//Esplora uses order BGR, vs RGB - go figure...
-	const unsigned char brickColors[12][3] = {
+	const unsigned char brickColors[maxBricksH/2][3] = {			//maxBricksH/2 assumes 2 rows of each color in brick display
 			{0, 0, 255},		//red
 			{0, 100, 255},		//orange
 			{225, 0, 255},		//pink
@@ -777,12 +777,7 @@ void setupBricks(void) {
 			{0, 255, 0},		//green
 			{255, 204, 229},	//lavender
 			{255, 51, 51},		//blue
-			{255, 51, 153},		//purple
-			{0, 255, 0},		//green
-			{255, 204, 229},	//lavender
-			{255, 51, 51},		//blue
 			{255, 51, 153}		//purple
-
 	};
 
 	EsploraTFT.stroke(0, 0, 0);
