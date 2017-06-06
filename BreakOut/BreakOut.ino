@@ -411,8 +411,16 @@ void processBall(void) {
 			}
 		}
 
-		//check if there are any more bricks
+		//check if we're out of bricks
 		if (numBricksHit == numBricks) {
+			//erase the old ball
+			EsploraTFT.fill(0, 0, 0);
+			EsploraTFT.rect(lastBallX, lastBallY, ballW, ballW);
+
+			//set the last position to off screen, so that subsequent attempt to erase it won't leave artifact on screen (ratty bug fix...)
+			lastBallX = screenW;
+			lastBallY = screenH;
+
 			numBricksH = numBricksH + 2;
 
 			if (numBricksH <= maxBricksH) {
@@ -421,24 +429,24 @@ void processBall(void) {
 			} else {
 				gameEnd(WIN);
 			}
+		} else {
+
+			//calculate the new position for the ball
+			ballX = ballX + ballXComp;	//move the ball x
+			ballY = ballY + ballYComp;	//move the ball y
+
+			//erase the old ball
+			EsploraTFT.fill(0, 0, 0);
+			EsploraTFT.rect(lastBallX, lastBallY, ballW, ballW);
+
+			// draw the new ball
+			EsploraTFT.fill(255, 255, 255);
+			EsploraTFT.rect(ballX, ballY, ballW, ballW);
+
+			//update the last ball position to the new ball position
+			lastBallX = ballX;
+			lastBallY = ballY;
 		}
-
-		//calculate the new position for the ball
-		ballX = ballX + ballXComp;	//move the ball x
-		ballY = ballY + ballYComp;	//move the ball y
-
-		//erase the old ball
-		EsploraTFT.fill(0, 0, 0);
-		EsploraTFT.rect(lastBallX, lastBallY, ballW, ballW);
-
-		// draw the new ball
-		EsploraTFT.fill(255, 255, 255);
-		EsploraTFT.rect(ballX, ballY, ballW, ballW);
-
-		//update the last ball position to the new ball position
-		lastBallX = ballX;
-		lastBallY = ballY;
-
 	}
 }
 
